@@ -18,6 +18,7 @@ ApplicationWindow {
     property string currentMapName: initialMap.name
     property var loadedTrack: null
     property bool mapLoading: false
+    property var mapCapabilities: initialMap.capabilities || ({})
     property string currentMapAttribution: initialMap.attribution
     property var currentMapCenter: QtPositioning.coordinate(initialMap.latitude, initialMap.longitude)
     property var searchCoordinate: QtPositioning.coordinate()
@@ -25,6 +26,7 @@ ApplicationWindow {
         id: mapTools
         mapView: appWindow.mapview
         backend: mapDocument
+        searchAvailable: !!appWindow.mapCapabilities.search
         mapCenter: appWindow.currentMapCenter
         anchors.top: parent.top
         anchors.right: parent.right
@@ -103,6 +105,7 @@ ApplicationWindow {
             stackView.showMessage(qsTr("加载地图失败"), result.error)
             return
         }
+        const previousParameters = parameters
         const nextParameters = []
         for (let i = 0; i < parameters.length; ++i)
             nextParameters.push(parameterComponent.createObject(appWindow, {
@@ -112,10 +115,15 @@ ApplicationWindow {
             }))
         parameters = nextParameters
         mainMenu.selectProvider("maplibre")
+        Qt.callLater(function() {
+            for (let i = 0; i < previousParameters.length; ++i)
+                previousParameters[i].destroy()
+        })
         mapview.map.center = QtPositioning.coordinate(result.latitude, result.longitude)
         mapview.map.zoomLevel = result.zoom
         mapview.map.bearing = 0
         mapview.map.tilt = 0
+        mapCapabilities = result.capabilities || ({})
         currentMapName = result.name
         currentMapAttribution = result.attribution
         currentMapCenter = QtPositioning.coordinate(result.latitude, result.longitude)
@@ -129,7 +137,7 @@ ApplicationWindow {
         id: mapFileDialog
         title: qsTr("加载地图")
         fileMode: FileDialog.OpenFile
-        nameFilters: [qsTr("地图文件 (*.mbtiles *.img)"), qsTr("MBTiles (*.mbtiles)"), qsTr("佳明地图 (*.img)")]
+        nameFilters: mapDocument.fileFilters
         currentFolder: initialMap.folder
         onAccepted: appWindow.loadMapFile(selectedFile)
     }
@@ -142,6 +150,7 @@ ApplicationWindow {
 
     function createMap(provider)
     {
+        const previousPlugin = plugin
         if (parameters && parameters.length>0)
             plugin = Qt.createQmlObject ('import QtLocation; Plugin{ name:"' + provider + '"; parameters: appWindow.parameters}', appWindow)
         else
@@ -169,6 +178,7 @@ ApplicationWindow {
         }
         mapview = mapComponent.createObject(page);
         mapview.map.plugin = plugin;
+        mapDocument.retainForRenderer(mapview)
 
         if (zoomLevel != null) {
             mapview.map.tilt = tilt
@@ -179,12 +189,15 @@ ApplicationWindow {
             mapview.slidersExpanded = panelExpanded
         } else {
             // Use an integer ZL to enable nearest interpolation, if possible.
-            mapview.map.zoomLevel = 12
+            mapview.map.center = QtPositioning.coordinate(initialMap.latitude, initialMap.longitude)
+            mapview.map.zoomLevel = initialMap.zoom
             // defaulting to 45 degrees, if possible.
             mapview.map.fieldOfView = Math.min(Math.max(45.0, mapview.map.minimumFieldOfView), mapview.map.maximumFieldOfView)
         }
 
         mapview.forceActiveFocus()
+        if (previousPlugin)
+            Qt.callLater(function() { previousPlugin.destroy() })
     }
 
     function getPlugins()
@@ -381,6 +394,7 @@ ApplicationWindow {
     MapPopupMenu {
         id: mapPopupMenu
         routingAvailable: navigation.available
+        nearbyAvailable: !!appWindow.mapCapabilities.nearby
 
         function show(coordinate)
         {

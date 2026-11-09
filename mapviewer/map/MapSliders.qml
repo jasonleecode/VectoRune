@@ -176,7 +176,7 @@ Row {
                     from : containerRow.mapSource.minimumZoomLevel
                     to : containerRow.mapSource.maximumZoomLevel
                     value : containerRow.mapSource.zoomLevel
-                    onValueChanged: {
+                    onMoved: {
                             containerRow.mapSource.zoomLevel = value
                     }
                 }
@@ -187,7 +187,7 @@ Row {
                     to: 360
                     orientation : Qt.Vertical
                     value: containerRow.mapSource.bearing
-                    onValueChanged: {
+                    onMoved: {
                         containerRow.mapSource.bearing = value;
                     }
                 }
@@ -198,7 +198,7 @@ Row {
                     from: containerRow.mapSource.minimumTilt;
                     to: containerRow.mapSource.maximumTilt
                     value: containerRow.mapSource.tilt
-                    onValueChanged: {
+                    onMoved: {
                         containerRow.mapSource.tilt = value;
                     }
                 }
@@ -209,7 +209,7 @@ Row {
                     from: containerRow.mapSource.minimumFieldOfView
                     to: containerRow.mapSource.maximumFieldOfView
                     value: containerRow.mapSource.fieldOfView
-                    onValueChanged: {
+                    onMoved: {
                         containerRow.mapSource.fieldOfView = value;
                     }
                 }

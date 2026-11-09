@@ -9,6 +9,7 @@ Menu {
     property int markersCount
     property int mapItemsCount
     property bool routingAvailable: false
+    property bool nearbyAvailable: false
     signal itemClicked(string item)
 
     MenuItem {
@@ -22,6 +23,7 @@ Menu {
     }
     MenuItem {
         text: qsTr("附近地点详情")
+        enabled: nearbyAvailable
         onTriggered: itemClicked("poiDetails")
     }
     MenuSeparator {}

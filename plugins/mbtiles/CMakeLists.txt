@@ -1,0 +1,6 @@
+find_package(ZLIB REQUIRED)
+add_library(vectorune_mbtiles STATIC backend.cpp)
+target_link_libraries(vectorune_mbtiles PUBLIC vectorune_core PRIVATE Qt6::Sql)
+add_executable(mapviewer_place_search place_search.cpp)
+target_link_libraries(mapviewer_place_search PRIVATE vectorune_core Qt6::Sql ZLIB::ZLIB)
+qt_add_resources(vectorune_mbtiles mbtiles_style PREFIX /offline FILES resources/beijing-style.json)

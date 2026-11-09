@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 #include "mapdocument.h"
+#include "builtin.h"
+#include "runtimepaths.h"
 #include "gpxtrack.h"
 
 #include <QtQml/QQmlApplicationEngine>
@@ -11,6 +13,8 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
+#include <QtCore/QTemporaryFile>
+#include <QtCore/QFile>
 #include <QtCore/QUrl>
 
 #if QT_CONFIG(ssl)
@@ -61,7 +65,8 @@ int main(int argc, char *argv[])
 #endif
 
     QGuiApplication application(argc, argv);
-    QCoreApplication::setApplicationName(u"QtLocation Mapviewer example"_s);
+    QCoreApplication::setOrganizationName("VectoRune");
+    QCoreApplication::setApplicationName("Mapviewer");
 
     QStringList args = QCoreApplication::arguments();
     args.removeFirst();
@@ -71,8 +76,7 @@ int main(int argc, char *argv[])
     }
 
     QVariantMap parameters = parseArgs(args);
-    QString mbtilesPath = QDir(QString::fromUtf8(MAPVIEWER_SOURCE_DIR))
-                              .absoluteFilePath(u"../data/maps/beijing.mbtiles"_s);
+    QString mbtilesPath = QDir(RuntimePaths::dataDirectory()).filePath("maps/beijing.mbtiles");
     const auto mbtilesArg = args.indexOf(u"--mbtiles"_s);
     if (mbtilesArg >= 0) {
         if (mbtilesArg + 1 >= args.size() || args[mbtilesArg + 1].startsWith(u"--")) {
@@ -81,19 +85,26 @@ int main(int argc, char *argv[])
         }
         mbtilesPath = args[mbtilesArg + 1];
     }
-    MapDocument mapDocument;
-    const auto initialMap = mapDocument.prepare(QUrl::fromLocalFile(QFileInfo(mbtilesPath).absoluteFilePath()));
+    MapDocument mapDocument(builtinMaps());
+    QTemporaryFile emptyStyle(QDir::tempPath() + "/vectorune-empty-XXXXXX.json");
+    auto initialMap = mapDocument.prepare(QUrl::fromLocalFile(QFileInfo(mbtilesPath).absoluteFilePath()));
     if (initialMap.contains(u"error"_s)) {
         std::cerr << qPrintable(initialMap.value(u"error"_s).toString()) << "\n";
-        return 1;
+        // A deployed viewer can start without a bundled sample map.
+        QFile resource(":/offline/resources/empty-style.json");
+        if (!resource.open(QIODevice::ReadOnly) || !emptyStyle.open()) return 1;
+        const auto bytes = resource.readAll();
+        if (emptyStyle.write(bytes) != bytes.size() || !emptyStyle.flush()) return 1;
+        initialMap = {{"styleUrl", QUrl::fromLocalFile(emptyStyle.fileName()).toString()}, {"name", "VectoRune"},
+            {"latitude", 0}, {"longitude", 0}, {"zoom", 2}, {"attribution", ""},
+            {"folder", QUrl::fromLocalFile(RuntimePaths::dataDirectory())}, {"capabilities", QVariantMap{}}};
     }
     if (!parameters.contains(u"maplibre.map.styles"_s))
         parameters.insert(u"maplibre.map.styles"_s,
                           initialMap.value(u"styleUrl"_s));
     if (!parameters.contains(u"maplibre.cache.directory"_s))
         parameters.insert(u"maplibre.cache.directory"_s,
-                          QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-                              + u"/maplibre"_s);
+                          RuntimePaths::cacheDirectory() + u"/maplibre"_s);
     // The plugin is bundled by qmaplibre_location_setup_plugins().
     QCoreApplication::addLibraryPath(QCoreApplication::applicationDirPath() + u"/../PlugIns"_s);
     qInfo() << "MapLibre offline map:" << mbtilesPath;
@@ -102,7 +113,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("gpxTrack", &gpxTrack);
     engine.rootContext()->setContextProperty("initialTrackFolder", QUrl::fromLocalFile(
-        QDir(QString::fromUtf8(MAPVIEWER_SOURCE_DIR)).absoluteFilePath(u"../data/gpx"_s)));
+        QDir(RuntimePaths::dataDirectory()).filePath("gpx")));
     engine.rootContext()->setContextProperty("mapDocument", &mapDocument);
     engine.rootContext()->setContextProperty("initialMap", initialMap);
 #if QT_CONFIG(ssl)

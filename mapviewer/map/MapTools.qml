@@ -8,6 +8,7 @@ Item {
     required property var mapView
     required property var backend
     property var mapCenter: QtPositioning.coordinate()
+    property bool searchAvailable: true
     property bool searchOpen: false
     property bool searching: false
     property var results: []
@@ -102,7 +103,8 @@ Item {
                 required property var modelData
                 width: 44; height: 44
                 Accessible.name: modelData.label
-                enabled: modelData.kind !== "locate" || !tools.locating
+                enabled: (modelData.kind !== "locate" || !tools.locating)
+                         && (modelData.kind !== "search" || tools.searchAvailable)
                 ToolTip.visible: hovered
                 ToolTip.delay: 500
                 ToolTip.text: modelData.label

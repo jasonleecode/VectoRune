@@ -1,9 +1,12 @@
 # Mapviewer
 
 Qt Quick / Qt Location viewer using **MapLibre Native Qt** (`maplibre` geoservices
-plugin). The default map is `../data/maps/beijing.mbtiles`, read directly through
+plugin). The default map is `data/maps/beijing.mbtiles`, read directly through
 MapLibre's `mbtiles://` protocol. No tile server, API key, or network connection is
 needed for the default map.
+
+Application-independent components now live in `core/` and `plugins/`; helpers live
+in `tools/`. See [implementation status](../docs/refactoring-progress-2026-11-09.md).
 
 ## Build on this Mac
 
@@ -14,11 +17,11 @@ component and native MBTiles support.
 From the repository root:
 
 ```sh
-cmake -S mapviewer -B mapviewer/build/cmake-local \
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH=/opt/homebrew \
   -DQMapLibre_DIR="$PWD/../maplibre-native-qt/install/lib/cmake/QMapLibre"
-cmake --build mapviewer/build/cmake-local --parallel 8
-open mapviewer/build/cmake-local/qml_location_mapviewer.app
+cmake --build build --parallel 8
+open build/mapviewer/qml_location_mapviewer.app
 ```
 
 The QMapLibre path above selects this machine's recent local build. The older
@@ -37,7 +40,11 @@ A recent position can display immediately while refreshing; if permission is
 denied, location services are unavailable, or the request times out without a
 usable recent position, it returns to the loaded map's metadata center.
 Search is offline: Garmin uses imported POI names (including accent-insensitive
-pinyin), while vector MBTiles searches embedded MVT names in a separate worker.
+pinyin), while vector MBTiles builds a persistent name index from embedded MVT names
+in a separate worker. Later queries reuse it. Both formats use Unicode bigram/name
+and R-tree indexes; a one-character substring query scans indexed name rows.
+Results are globally ranked before limiting to 50. MBTiles search caches have a
+separate 128 MiB disk budget; source content is hashed to invalidate changed maps.
 Select a result to center/zoom and mark it. Raster tiles contain no searchable
 text. No query is sent to a remote geocoding service.
 
@@ -50,12 +57,14 @@ matching style. The file picker starts in the current map's directory.
 
 Garmin IMG maps use the bundled `lib/libgarmin` C parser. CMake builds it without
 autotools and includes the `mapviewer_garmin_import` helper beside the app binary.
-Loading an IMG converts its finest available geometry to a temporary GeoJSON
-source in a separate process, then renders it with `resources/garmin-style.json`.
+Loading an IMG converts its finest available geometry to a cached GeoJSON
+source in a separate process, then renders it with `plugins/garmin/resources/garmin-style.json` (repository-relative).
 The viewer stays responsive during conversion, retains the current map on import
-failure, and terminates imports taking more than three minutes. Temporary data is
-removed on exit; source IMG files are opened read-only. The helper must accompany
-the app when installing or moving it.
+failure, and terminates imports taking more than three minutes. Content-addressed imports
+are reused across sessions. The 512 MiB cache evicts inactive entries; live renderer leases
+are never evicted and may temporarily exceed the aggregate budget. A single import
+exceeding the budget is rejected. Source IMG files are opened read-only. Installation
+includes helper programs beside the executable (and inside the macOS app bundle).
 
 The adapter displays areas, water, roads, trails, railways, boundaries and categorized POI
 dots. It uses a generic style rather than Garmin TYP styling. Latin/pinyin road, area and POI names are rendered with bundled offline Noto Sans
@@ -75,8 +84,8 @@ The parser is GPLv2; see `lib/libgarmin/COPYING` for its license.
 To check the adapter against the supplied Beijing IMG:
 
 ```sh
-python3 mapviewer/tests/test_garmin_import.py \
-  mapviewer/build/cmake-local/garmin/mapviewer_garmin_import \
+python3 tests/integration/test_garmin_import.py \
+  build/tools/mapviewer_garmin_import \
   data/maps/Beijing_gmapsupp.img
 ```
 
@@ -88,17 +97,19 @@ replaces the previous track; changing the base map retains the loaded track.
 The picker starts in `data/gpx`. The supplied `17-8月-2025-1044.gpx` contains
 1,611 track points and approximately 8.47 km of recorded track.
 
-The default MBTiles path is resolved from the source directory at build time, so
-launching through Finder does not depend on the working directory. To use another
+Set `VECTORUNE_DATA_DIR` to a directory containing `maps/` and `gpx/`, or place data
+in the installation data directory. A repository-root launch also finds `data/`.
+The application starts with an empty local style when no default map is present;
+it does not embed the build machine's source path. To use another
 OpenMapTiles-schema vector database, pass an absolute or working-directory-relative
 path:
 
 ```sh
-mapviewer/build/cmake-local/qml_location_mapviewer.app/Contents/MacOS/qml_location_mapviewer \
+build/mapviewer/qml_location_mapviewer.app/Contents/MacOS/qml_location_mapviewer \
   --mbtiles data/maps/beijing.mbtiles
 ```
 
-The bundled `resources/beijing-style.json` draws land, parks, water, roads,
+The bundled `plugins/mbtiles/resources/beijing-style.json` (repository-relative) draws land, parks, water, roads,
 railways, boundaries and buildings. It deliberately has no remote glyph or sprite
 URLs: **road/place text labels and POI icons are not yet included**. The viewer
 starts in central Beijing at zoom 12. The supplied database has zoom levels 0–14;
@@ -115,8 +126,11 @@ permission is requested when the user selects “Follow me” or starts live nav
 
 After loading a Garmin IMG, right-click to select **设为路线起点** and
 **设为路线终点**, then choose **规划路线** or press **规划** in the panel.
-The separate routing helper builds a directed graph from NET-associated road
-geometry and Garmin junction flags. It supports car, bicycle and walking modes,
+The separate routing service reads versioned `routing.cbor` once and builds a directed graph from NET-associated road
+geometry and Garmin junction flags. Repeated queries reuse the graph and turn automaton.
+Changing travel mode replaces the single resident graph; 60 seconds idle releases the
+worker. This still loads the whole network and is not a memory-mapped graph index.
+It supports car, bicycle and walking modes,
 shortest/estimated-fastest routes, and one-way streets. Internal shape crossings
 do not connect unless marked as junctions. The Beijing fixture exports 92,479
 road polylines; a central Beijing test route measured approximately 4.33 km.
@@ -154,8 +168,8 @@ MapLibre renders these results; it does not supply the routing engine.
 To independently check real forbidden movements after importing the IMG:
 
 ```sh
-python3 mapviewer/tests/test_garmin_routing.py \
-  mapviewer/build/cmake-local/garmin/mapviewer_garmin_route /tmp/imported-map/routing.json
+python3 tests/integration/test_garmin_routing.py \
+  build/tools/mapviewer_garmin_route /tmp/imported-map/routing.json
 ```
 
 Format implementation references are the primary mkgmap writers:
@@ -174,9 +188,9 @@ and longitude differences. The zoom slider and keyboard shortcuts zoom about the
 map center.
 
 ```sh
-cmake -S mapviewer -B mapviewer/build/cmake-local -DMAPVIEWER_BUILD_TESTS=ON
-cmake --build mapviewer/build/cmake-local --parallel 8
-ctest --test-dir mapviewer/build/cmake-local --output-on-failure
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build --parallel 8
+ctest --test-dir build --output-on-failure
 ```
 
 These GUI tests need a desktop session and the same installed QMapLibre frameworks
@@ -186,7 +200,7 @@ plugin with a local empty style.
 
 ## Garmin dataset inspection
 
-`garmin/mapviewer_garmin_inspect` (in the build directory) inventories IMG sections,
+`tools/mapviewer_garmin_inspect` (in the build directory) inventories IMG sections,
 label encodings, object types, names, POI fields and road flags. The actual Beijing
 report is saved in `doc/beijing-garmin-analysis.json`. It counts records, not
 unique real-world entities. The two map sections each include NET/NOD route data;
@@ -201,8 +215,8 @@ format was checked against the primary mkgmap writer:
 https://github.com/openstreetmap/mkgmap/blob/master/src/uk/me/parabola/imgfmt/app/lbl/POIRecord.java
 
 ```sh
-mapviewer/build/cmake-local/garmin/mapviewer_garmin_inspect \
+build/tools/mapviewer_garmin_inspect \
   data/maps/Beijing_gmapsupp.img /tmp/beijing-inspection.json
-mapviewer/build/cmake-local/qml_location_mapviewer.app/Contents/MacOS/qml_location_mapviewer \
+build/mapviewer/qml_location_mapviewer.app/Contents/MacOS/qml_location_mapviewer \
   --map data/maps/Beijing_gmapsupp.img
 ```
