@@ -1,0 +1,6 @@
+[submodule "lib/libosmium"]
+	path = lib/libosmium
+	url = git@github.com:osmcode/libosmium.git
+[submodule "tools/tilemaker"]
+	path = tools/tilemaker
+	url = https://github.com/systemed/tilemaker.git

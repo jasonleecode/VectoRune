@@ -1,0 +1,469 @@
+{
+  "version": 8,
+  "name": "Garmin IMG",
+  "sources": {
+    "garmin": {
+      "type": "geojson",
+      "data": "",
+      "maxzoom": 14,
+      "tolerance": 0.5,
+      "attribution": "Garmin IMG · libgarmin"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f4f1e8"
+      }
+    },
+    {
+      "id": "land",
+      "type": "fill",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "Polygon"
+        ],
+        [
+          "in",
+          "class",
+          "area"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#e6dfd0",
+        "fill-opacity": 0.65
+      }
+    },
+    {
+      "id": "green",
+      "type": "fill",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "Polygon"
+        ],
+        [
+          "in",
+          "class",
+          "green"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#cce0b6"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "Polygon"
+        ],
+        [
+          "in",
+          "class",
+          "water"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#a1cfdf"
+      }
+    },
+    {
+      "id": "contours",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "contour"
+        ]
+      ],
+      "paint": {
+        "line-color": "#baa98b",
+        "line-width": 0.5
+      },
+      "minzoom": 11
+    },
+    {
+      "id": "waterways",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "waterway"
+        ]
+      ],
+      "paint": {
+        "line-color": "#91c2d8",
+        "line-width": 1.5
+      }
+    },
+    {
+      "id": "boundaries",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "boundary"
+        ]
+      ],
+      "paint": {
+        "line-color": "#a597b2",
+        "line-width": 1,
+        "line-dasharray": [
+          4,
+          3
+        ]
+      }
+    },
+    {
+      "id": "road-casing",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "road",
+          "major"
+        ]
+      ],
+      "paint": {
+        "line-color": "#cbbfac",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          1,
+          14,
+          5,
+          18,
+          12
+        ]
+      },
+      "minzoom": 10
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0.3,
+          11,
+          1,
+          14,
+          3,
+          18,
+          10
+        ]
+      }
+    },
+    {
+      "id": "major-roads",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "major"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f5c877",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0.3,
+          11,
+          1,
+          14,
+          3,
+          18,
+          10
+        ]
+      }
+    },
+    {
+      "id": "trails",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "trail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#c28a61",
+        "line-width": 1,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      },
+      "minzoom": 12
+    },
+    {
+      "id": "rail",
+      "type": "line",
+      "source": "garmin",
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "in",
+          "class",
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#8f8a84",
+        "line-width": 1,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      },
+      "minzoom": 10
+    },
+    {
+      "id": "pois",
+      "type": "circle",
+      "source": "garmin",
+      "filter": [
+        "==",
+        "$type",
+        "Point"
+      ],
+      "paint": {
+        "circle-color": [
+          "match",
+          [
+            "get",
+            "category"
+          ],
+          "餐饮",
+          "#d06c43",
+          "住宿",
+          "#9165bd",
+          "购物",
+          "#bd5f91",
+          "停车场",
+          "#4c83bb",
+          "加油站",
+          "#cf9b37",
+          "公共服务",
+          "#557e9b",
+          "#637d6b"
+        ],
+        "circle-radius": 2,
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 0.5
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "road-names",
+      "type": "symbol",
+      "source": "garmin",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "LineString"
+        ],
+        [
+          "has",
+          "name"
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "symbol-placement": "line",
+        "text-size": 11
+      },
+      "paint": {
+        "text-color": "#3e454c",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "area-names",
+      "type": "symbol",
+      "source": "garmin",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "Polygon"
+        ],
+        [
+          "has",
+          "name"
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 11,
+        "text-max-width": 14
+      },
+      "paint": {
+        "text-color": "#3e454c",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "poi-names",
+      "type": "symbol",
+      "source": "garmin",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "==",
+          "$type",
+          "Point"
+        ],
+        [
+          "has",
+          "name"
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 11,
+        "text-offset": [
+          0,
+          1
+        ],
+        "text-anchor": "top",
+        "text-max-width": 16
+      },
+      "paint": {
+        "text-color": "#3e454c",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    }
+  ],
+  "glyphs": ""
+}

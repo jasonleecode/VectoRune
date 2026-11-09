@@ -1,0 +1,72 @@
+{
+  "input": "data/maps/Beijing_gmapsupp.img",
+  "sha256": "72dfe6f0cbc1dffa9c13dcfaa3bba467806e7f202898a08b05fb025635cf760d",
+  "reports": [
+    {
+      "centers": 527,
+      "complete": true,
+      "mapId": "94530001",
+      "restrictedRoadRecords": 17538,
+      "restrictions": 351,
+      "roadRecords": 43359
+    },
+    {
+      "centers": 536,
+      "complete": true,
+      "mapId": "94530002",
+      "restrictedRoadRecords": 20716,
+      "restrictions": 251,
+      "roadRecords": 49118
+    }
+  ],
+  "roadPolylines": 92479,
+  "restrictionRecords": 602,
+  "uniqueRestrictions": 421,
+  "restrictionPathLengths": {
+    "5": 12,
+    "2": 294,
+    "4": 42,
+    "3": 248,
+    "7": 6
+  },
+  "accessMasks": {
+    "0": 59788,
+    "49255": 27523,
+    "49239": 1653,
+    "48": 1967,
+    "49223": 271,
+    "49271": 834,
+    "49238": 15,
+    "49270": 3,
+    "1": 96,
+    "32": 67,
+    "16": 57,
+    "33": 7,
+    "49222": 21,
+    "129": 2,
+    "128": 148,
+    "113": 6,
+    "112": 3,
+    "49254": 10,
+    "176": 1,
+    "49269": 3,
+    "16471": 2,
+    "49": 1,
+    "2": 1
+  },
+  "conditionalSupport": "Known static Table C headers only. No recognized time conditions in this input. Unknown headers, conditional payloads, unparsed NOD extensions and corrupted data reject routing; clock-based Garmin schedule decoding is not implemented.",
+  "realTurnChecksMetres": [
+    [
+      313.0,
+      605.5
+    ],
+    [
+      139.6,
+      339.8
+    ],
+    [
+      216.3,
+      607.8
+    ]
+  ]
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
+<key>CFBundleIdentifier</key><string>org.vectorune.mapviewer</string>
+<key>CFBundleName</key><string>Mapviewer</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>1.0</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSLocationUsageDescription</key><string>用于在离线地图上显示当前位置并提供路线导航。</string>
+<key>NSLocationWhenInUseUsageDescription</key><string>用于在离线地图上显示当前位置并提供路线导航。</string>
+</dict></plist>
