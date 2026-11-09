@@ -29,6 +29,18 @@ Qt and QMapLibre frameworks (this is a development build, not a standalone bundl
 
 ## Map data and style
 
+The upper-right toolbar provides place search, a rotating compass (click to
+restore north-up), and recentering. Recenter requests the operating system's
+current position (macOS Core Location, including Wi-Fi positioning, without
+requiring GPS hardware). The first request prompts for location permission.
+A recent position can display immediately while refreshing; if permission is
+denied, location services are unavailable, or the request times out without a
+usable recent position, it returns to the loaded map's metadata center.
+Search is offline: Garmin uses imported POI names (including accent-insensitive
+pinyin), while vector MBTiles searches embedded MVT names in a separate worker.
+Select a result to center/zoom and mark it. Raster tiles contain no searchable
+text. No query is sent to a remote geocoding service.
+
 Right-click the map and choose **加载地图…** to select a `.mbtiles` or Garmin `.img` file.
 The viewer checks the database before switching, updates the window title, and
 moves to the center/zoom stored in the map metadata. Canceling or selecting an

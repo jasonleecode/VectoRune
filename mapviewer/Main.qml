@@ -19,6 +19,34 @@ ApplicationWindow {
     property var loadedTrack: null
     property bool mapLoading: false
     property string currentMapAttribution: initialMap.attribution
+    property var currentMapCenter: QtPositioning.coordinate(initialMap.latitude, initialMap.longitude)
+    property var searchCoordinate: QtPositioning.coordinate()
+    MapTools {
+        id: mapTools
+        mapView: appWindow.mapview
+        backend: mapDocument
+        mapCenter: appWindow.currentMapCenter
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 12
+        z: 110
+        visible: !!appWindow.mapview && stackView.depth === 1
+        onLocationRequested: {
+            if (permission.status === Qt.Granted) {
+                mapTools.waitForPosition()
+                mapview.requestCurrentPosition()
+            } else if (permission.status === Qt.Undetermined) {
+                mapTools.locationNotice = "请允许 Mapviewer 使用系统定位"
+                permission.request()
+            } else mapTools.locationFailed("系统定位权限未开启")
+        }
+        onPlaceSelected: (coordinate, name) => {
+            appWindow.searchCoordinate = coordinate
+            mapview.followme = false
+            mapview.map.center = coordinate
+            mapview.map.zoomLevel = Math.min(mapview.maximumZoomLevel, Math.max(mapview.map.zoomLevel, 15))
+        }
+    }
     NavigationController {
         id: navigation
         mapView: appWindow.mapview
@@ -90,6 +118,9 @@ ApplicationWindow {
         mapview.map.tilt = 0
         currentMapName = result.name
         currentMapAttribution = result.attribution
+        currentMapCenter = QtPositioning.coordinate(result.latitude, result.longitude)
+        searchCoordinate = QtPositioning.coordinate()
+        mapTools.resetSearch()
         navigation.reset(!!result.routingAvailable)
         mapFileDialog.currentFolder = result.folder
     }
@@ -560,6 +591,8 @@ support"
         id: mapComponent
 
         MapComponent {
+            locationEnabled: permission.status === Qt.Granted
+            searchCoordinate: appWindow.searchCoordinate
             mapAttribution: appWindow.currentMapAttribution
             navigationRoute: navigation.route
             navigationStart: navigation.start
@@ -567,7 +600,11 @@ support"
             navigationPosition: navigation.position
             navigationActive: navigation.active
             navigationSimulating: navigation.simulating
-            onGpsUpdated: (coordinate, accuracy) => navigation.updatePosition(coordinate, accuracy)
+            onGpsUpdated: (coordinate, accuracy) => {
+                navigation.updatePosition(coordinate, accuracy)
+                mapTools.positionReceived(coordinate, gpsTimestamp)
+            }
+            onLocationUnavailable: (reason) => mapTools.locationFailed(reason)
             track: appWindow.loadedTrack
             width: page.width
             height: page.height
@@ -622,6 +659,13 @@ support"
         id: permission
         accuracy: LocationPermission.Precise
         availability: LocationPermission.WhenInUse
+        onStatusChanged: {
+            if (!mapTools.locating) return
+            if (status === Qt.Granted) {
+                mapTools.waitForPosition()
+                mapview.requestCurrentPosition()
+            } else if (status === Qt.Denied) mapTools.locationFailed("系统定位权限未开启")
+        }
     }
 
     Dialog {

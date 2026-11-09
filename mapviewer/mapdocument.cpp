@@ -15,6 +15,52 @@
 #include <QGeoRectangle>
 #include <cmath>
 
+static QString searchKey(const QString &text) {
+    QString result;
+    for (auto c : text.normalized(QString::NormalizationForm_D).toCaseFolded())
+        if (c.category() != QChar::Mark_NonSpacing) result += c;
+    return result.trimmed();
+}
+
+void MapDocument::searchPlaces(const QString &query)
+{
+    const auto generation = ++searchGeneration;
+    const auto term = searchKey(query);
+    if (term.isEmpty()) { emit placesReady({{"items", QVariantList{}}}); return; }
+    if (searchMapFile.isEmpty()) {
+        QVariantList exact, prefix, other;
+        for (const auto &value : poiIndex) {
+            const auto poi = value.toObject();
+            const auto name = searchKey(poi.value("name").toString());
+            if (!name.contains(term)) continue;
+            auto item = poi.toVariantMap();
+            item.insert("subtitle", poi.value("category").toString() + " · " + poi.value("city").toString());
+            if (name == term) exact.append(item);
+            else if (name.startsWith(term)) prefix.append(item);
+            else other.append(item);
+        }
+        exact.append(prefix); exact.append(other);
+        while (exact.size() > 50) exact.removeLast();
+        emit placesReady({{"items", exact}});
+        return;
+    }
+    auto *process = new QProcess(this);
+    auto *timer = new QTimer(process);
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, process, [process] { process->kill(); });
+    auto complete = [this, process, generation](bool ok) {
+        const auto result = QJsonDocument::fromJson(process->readAllStandardOutput()).object().toVariantMap();
+        process->deleteLater();
+        if (generation != searchGeneration) return;
+        emit placesReady(result.contains("items") || result.contains("error") ? result
+            : QVariantMap{{"error", ok ? tr("搜索结果无效。") : tr("地图搜索失败或超时。")}});
+    };
+    connect(process, &QProcess::finished, this, [complete](int code, QProcess::ExitStatus status) { complete(code == 0 && status == QProcess::NormalExit); });
+    connect(process, &QProcess::errorOccurred, this, [complete](QProcess::ProcessError error) { if (error == QProcess::FailedToStart) complete(false); });
+    process->start(QCoreApplication::applicationDirPath() + "/mapviewer_place_search", {searchMapFile, query});
+    timer->start(30000);
+}
+
 void MapDocument::load(const QUrl &url)
 {
     if (importing) return;
@@ -95,6 +141,8 @@ void MapDocument::load(const QUrl &url)
         metadata.insert("zoom", 11);
         metadata.insert("attribution", "Garmin IMG · libgarmin");
         routingFile = QDir(output).filePath("routing.json");
+        searchMapFile.clear();
+        ++searchGeneration;
         metadata.insert("routingAvailable", QFileInfo::exists(routingFile) && metadata.value("routingWays").toInt() > 0);
         QFile pois(QDir(output).filePath("pois.json"));
         if (pois.open(QIODevice::ReadOnly))
@@ -283,6 +331,8 @@ QVariantMap MapDocument::prepare(const QUrl &url)
         longitude = 116.4074;
         latitude = 39.9042;
     }
+    searchMapFile = file.canonicalFilePath();
+    ++searchGeneration;
     return {{"styleUrl", styleUrl}, {"name", file.completeBaseName()},
             {"attribution", metadata.value("attribution", "© OpenStreetMap contributors")},
             {"folder", QUrl::fromLocalFile(file.absolutePath())},

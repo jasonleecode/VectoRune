@@ -15,6 +15,18 @@ InteractiveMapView {
     property int markerCounter: 0 // counter for total amount of markers. Resets to 0 when number of markers = 0
     property int currentMarker
     property bool followme: false
+    property bool locationEnabled: false
+    readonly property var gpsCoordinate: positionSource.position.coordinate
+    readonly property var gpsTimestamp: positionSource.position.timestamp
+    property var searchCoordinate: QtPositioning.coordinate()
+    MapQuickItem {
+        parent: view.map
+        coordinate: view.searchCoordinate
+        visible: view.searchCoordinate.isValid
+        z: 30
+        anchorPoint: Qt.point(9, 9)
+        sourceItem: Rectangle { width: 18; height: 18; radius: 9; color: "#e75047"; border.width: 3; border.color: "white" }
+    }
     property var track: null
     property string mapAttribution: "© OpenStreetMap contributors"
     property var navigationRoute: null
@@ -24,6 +36,15 @@ InteractiveMapView {
     property bool navigationActive: false
     property bool navigationSimulating: false
     signal gpsUpdated(var coordinate, real accuracy)
+    signal locationUnavailable(string reason)
+    function requestCurrentPosition() {
+        if (!positionSource.valid) {
+            locationUnavailable("系统定位服务不可用")
+            return
+        }
+        // Uses Core Location on macOS, including Wi-Fi/non-satellite location.
+        positionSource.update(12000)
+    }
 
     MapPolyline {
         parent: view.map
@@ -99,6 +120,7 @@ InteractiveMapView {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 12
+        anchors.rightMargin: 70
         z: view.map.z + 4
         visible: view.track !== null
         padding: 8
@@ -330,12 +352,18 @@ InteractiveMapView {
 
     PositionSource{
         id: positionSource
-        active: followme || (view.navigationActive && !view.navigationSimulating)
+        preferredPositioningMethods: PositionSource.AllPositioningMethods
+        active: view.locationEnabled || followme || (view.navigationActive && !view.navigationSimulating)
 
         onPositionChanged: {
             if (view.followme && positionSource.position.coordinate.isValid)
                 view.map.center = positionSource.position.coordinate
             view.gpsUpdated(positionSource.position.coordinate, positionSource.position.horizontalAccuracy)
+        }
+        onSourceErrorChanged: {
+            if (sourceError === PositionSource.AccessError) view.locationUnavailable("系统定位权限未开启")
+            else if (sourceError === PositionSource.UpdateTimeoutError) view.locationUnavailable("系统定位超时")
+            else if (sourceError !== PositionSource.NoError) view.locationUnavailable("系统定位服务不可用")
         }
     }
 
@@ -346,7 +374,7 @@ InteractiveMapView {
         coordinate: positionSource.position.coordinate
         opacity: 1.0
         anchorPoint: Qt.point(sourceItem.width/2, sourceItem.height/2)
-        visible: followme
+        visible: (followme || view.locationEnabled) && positionSource.position.coordinate.isValid
     }
     MapQuickItem {
         parent: view.map

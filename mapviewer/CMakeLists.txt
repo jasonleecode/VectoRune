@@ -17,6 +17,9 @@ set(INSTALL_EXAMPLEDIR "${INSTALL_EXAMPLESDIR}/location/mapviewer")
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network Quick Positioning Location Sql QuickDialogs2)
 find_package(QMapLibre REQUIRED COMPONENTS Location)
+find_package(ZLIB REQUIRED)
+add_executable(mapviewer_place_search place_search.cpp)
+target_link_libraries(mapviewer_place_search PRIVATE Qt6::Core Qt6::Sql ZLIB::ZLIB)
 add_subdirectory(garmin)
 
 qt_standard_project_setup(REQUIRES 6.5)
@@ -28,9 +31,12 @@ qt_add_executable(qml_location_mapviewer WIN32 MACOSX_BUNDLE
     gpxtrack.cpp
     gpxtrack.h
 )
-add_dependencies(qml_location_mapviewer mapviewer_garmin_import mapviewer_garmin_route)
+add_dependencies(qml_location_mapviewer mapviewer_garmin_import mapviewer_garmin_route mapviewer_place_search)
 set_property(TARGET qml_location_mapviewer APPEND PROPERTY LINK_DEPENDS
-    $<TARGET_FILE:mapviewer_garmin_import> $<TARGET_FILE:mapviewer_garmin_route>)
+    $<TARGET_FILE:mapviewer_garmin_import> $<TARGET_FILE:mapviewer_garmin_route> $<TARGET_FILE:mapviewer_place_search>)
+add_custom_command(TARGET qml_location_mapviewer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:mapviewer_place_search>
+        $<TARGET_FILE_DIR:qml_location_mapviewer>/mapviewer_place_search)
 add_custom_command(TARGET qml_location_mapviewer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:mapviewer_garmin_import>
         $<TARGET_FILE_DIR:qml_location_mapviewer>/mapviewer_garmin_import)
@@ -91,11 +97,15 @@ qt_add_qml_module(qml_location_mapviewer
         "Main.qml"
         "map/NavigationController.qml"
         "NavigationPanel.qml"
+        "map/MapTools.qml"
         "menus/ItemPopupMenu.qml"
         "menus/MainMenu.qml"
         "menus/MapPopupMenu.qml"
         "menus/MarkerPopupMenu.qml"
     RESOURCES
+        "resources/search.svg"
+        "resources/compass.svg"
+        "resources/locate.svg"
         "resources/marker.png"
         "resources/marker_blue.png"
         "resources/scale.png"
