@@ -57,10 +57,15 @@ matching style. The file picker starts in the current map's directory.
 
 Garmin IMG maps use the bundled `lib/libgarmin` C parser. CMake builds it without
 autotools and includes the `mapviewer_garmin_import` helper beside the app binary.
-Loading an IMG converts its finest available geometry to a cached GeoJSON
-source in a separate process, then renders it with `plugins/garmin/resources/garmin-style.json` (repository-relative).
+Loading an IMG precomputes a SQLite spatial/LOD geometry index and compiled routing
+graphs in separate processes. A bundled worker reads geometry for requested tiles,
+clips/encodes MVT, and serves it on a random loopback port to MapLibre with
+`plugins/garmin/resources/garmin-style.json` (repository-relative). This needs no Internet
+connection. Geometry is generalized at lower zooms; the finest source tile level is 14.
+Runtime rendering no longer loads a whole GeoJSON document. The default diagnostic
+import command still exports GeoJSON; `--compact` skips that export.
 The viewer stays responsive during conversion, retains the current map on import
-failure, and terminates imports taking more than three minutes. Content-addressed imports
+failure, and limits each import/graph-compilation phase to three minutes. Content-addressed imports
 are reused across sessions. The 512 MiB cache evicts inactive entries; live renderer leases
 are never evicted and may temporarily exceed the aggregate budget. A single import
 exceeding the budget is rejected. Source IMG files are opened read-only. Installation
@@ -73,7 +78,7 @@ Right-click near a POI and choose **附近地点详情** to view available names
 street/house number, phone and source address fields within 200 metres. Some
 source region records contain opening hours; they are deliberately labeled as
 raw fields instead of being presented as administrative regions. Road direction
-flags are retained in the exported GeoJSON. Original TYP graphics and
+flags are retained in the diagnostic GeoJSON export and routing graph. Original TYP graphics and
 encrypted/unsupported Garmin variants are not implemented.
 The tested `Beijing_gmapsupp.img` yielded 284,231 features (50,348 points,
 102,636 lines and 131,247 polygons), with bounds approximately
@@ -126,10 +131,14 @@ permission is requested when the user selects “Follow me” or starts live nav
 
 After loading a Garmin IMG, right-click to select **设为路线起点** and
 **设为路线终点**, then choose **规划路线** or press **规划** in the panel.
-The separate routing service reads versioned `routing.cbor` once and builds a directed graph from NET-associated road
-geometry and Garmin junction flags. Repeated queries reuse the graph and turn automaton.
-Changing travel mode replaces the single resident graph; 60 seconds idle releases the
-worker. This still loads the whole network and is not a memory-mapped graph index.
+Initial import compiles directed graphs from NET-associated road geometry and Garmin
+junction flags into `car.vgr`, `bicycle.vgr` and `walk.vgr`. The separate routing service
+memory-maps the selected mode, verifies its checksum/structure, and directly reads its
+nodes, edges and turn automaton. A spatial grid selects nearby snap candidates.
+Repeated queries reuse the mapping; changing travel mode replaces it; 60 seconds idle
+releases the worker. Runtime performs no graph construction. The temporary `routing.cbor`
+is removed from managed caches after compilation. Preprocessing still loads the full
+network; memory mapping also does not impose a hard query-memory budget.
 It supports car, bicycle and walking modes,
 shortest/estimated-fastest routes, and one-way streets. Internal shape crossings
 do not connect unless marked as junctions. The Beijing fixture exports 92,479

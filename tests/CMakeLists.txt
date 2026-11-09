@@ -1,4 +1,6 @@
 if(VECTORUNE_WITH_GARMIN)
+    add_executable(geometry_tests test_geometry.cpp)
+    target_link_libraries(geometry_tests PRIVATE vectorune_geometry)
     add_executable(garmin_network_tests garmin/test_network.cpp)
     target_link_libraries(garmin_network_tests PRIVATE mapviewer_garmin_attributes)
     add_test(NAME garmin_network_rules COMMAND garmin_network_tests)
@@ -15,6 +17,11 @@ if(Python3_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_conversion.py")
 endif()
 if(Python3_FOUND AND VECTORUNE_WITH_GARMIN)
+    add_test(NAME geometry_loopback COMMAND ${Python3_EXECUTABLE}
+        "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_tile_service.py" $<TARGET_FILE:geometry_tests> $<TARGET_FILE:mapviewer_geometry_service>)
+    set_tests_properties(geometry_loopback PROPERTIES LABELS "loopback")
+    add_test(NAME geometry_tiles COMMAND ${Python3_EXECUTABLE}
+        "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_geometry.py" $<TARGET_FILE:geometry_tests>)
     add_test(NAME routing_service COMMAND ${Python3_EXECUTABLE}
         "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_route_service.py" $<TARGET_FILE:mapviewer_garmin_route>)
 endif()

@@ -29,6 +29,13 @@ with tempfile.TemporaryDirectory(prefix="garmin-import-test-") as temporary:
     assert len(network["ways"]) == 92479
     assert len(network["restrictions"]) == 602
     assert (output / "routing.cbor").read_bytes().startswith(b"VRCB1\n")
+    with sqlite3.connect(output / "geometry.sqlite") as geometry:
+        assert geometry.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert geometry.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert dict(geometry.execute("SELECT kind,count(*) FROM features GROUP BY kind")) == {
+            1: counts["Point"], 2: counts["LineString"], 3: counts["Polygon"]}
+        assert geometry.execute("SELECT count(*) FROM shapes WHERE level=14").fetchone()[0] == len(features)
+        assert geometry.execute("SELECT count(DISTINCT CAST(id/3 AS INTEGER)) FROM bounds").fetchone()[0] == len(features)
     with sqlite3.connect(output / "places.sqlite") as places:
         assert places.execute("SELECT count(*) FROM places").fetchone()[0] == counts["Point"]
         assert places.execute("SELECT count(*) FROM positions").fetchone()[0] == counts["Point"]

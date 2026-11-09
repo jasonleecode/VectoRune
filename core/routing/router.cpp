@@ -1,4 +1,5 @@
 #include "router.h"
+#include "graphstorage.h"
 #include <QHash>
 #include <QSet>
 #include <QVector>
@@ -10,24 +11,13 @@
 #include <vector>
 
 namespace {
-struct Edge {
-    int destination, way;
-    double distance, seconds;
-    int token;
-};
-struct Node {
-    QGeoCoordinate coordinate;
-    QVector<Edge> edges;
-};
+using Edge = RouteEdge;
+using Node = RouteNode;
+using Prefix = RoutePrefix;
 quint64 coordinateKey(double lon, double lat) {
     auto x = qint32(std::llround(lon * 16777216.0 / 360)), y = qint32(std::llround(lat * 16777216.0 / 360));
     return (quint64(quint32(x)) << 32) | quint32(y);
 }
-struct Prefix {
-    QHash<int, int> next;
-    int fail = 0;
-    bool forbidden = false;
-};
 double bearingDelta(double before, double after) {
     double value = std::fmod(after - before + 540.0, 360.0) - 180.0;
     return value;
@@ -66,6 +56,17 @@ struct RoutingGraph::Impl {
     QString mode;
     bool requireDecodedAccess = false;
     QJsonObject failure;
+    std::unique_ptr<GraphStorage> mapped;
+    int nodeCount() const { return mapped ? mapped->nodeCount() : nodes.size(); }
+    QGeoCoordinate coordinate(int n) const { return mapped ? mapped->coordinate(n) : nodes[n].coordinate; }
+    int edgeCount(int n) const { return mapped ? mapped->edgeCount(n) : nodes[n].edges.size(); }
+    Edge edge(int n, int i) const { return mapped ? mapped->edge(n, i) : nodes[n].edges[i]; }
+    bool isLocal(int way) const { return mapped ? mapped->local(way) : localRoad[way]; }
+    QString name(int way) const { return mapped ? mapped->name(way) : names[way]; }
+    QString roadId(int way) const { return mapped ? mapped->roadId(way) : roadIds[way]; }
+    int incomingCount(int n) const { return mapped ? mapped->incomingCount(n) : localIncoming[n].size(); }
+    int incoming(int n, int i) const { return mapped ? mapped->incoming(n, i) : localIncoming[n][i]; }
+
     QJsonObject build(const QJsonArray &ways, const QJsonArray &restrictions) {
         auto fail = [](const QString &message) { return QJsonObject{{"error", message}}; };
         if (mode != "car" && mode != "walk" && mode != "bicycle") return fail("不支持的出行方式。");
@@ -256,6 +257,7 @@ struct RoutingGraph::Impl {
         if (!start.isValid() || !finish.isValid()) return fail("起终点经纬度无效。");
         if (strategy != "shortest" && strategy != "fastest") return fail("不支持的路线策略。");
     auto snap = [&](const QGeoCoordinate &coordinate, double &distance) {
+        if (mapped) return mapped->snap(coordinate, distance);
         int best = -1;
         distance = 1000.0;
         for (int i = 0; i < nodes.size(); ++i) {
@@ -273,25 +275,30 @@ struct RoutingGraph::Impl {
         return fail("起点或终点距离可用道路超过 1 公里，请选择道路附近的位置。");
     // No-through roads may provide endpoint access, but must not form a shortcut
     // between two unrestricted roads. Track entering/leaving the endpoint zone.
-    QVector<bool> originZone(nodes.size(), false), destinationZone(nodes.size(), false);
+    QVector<bool> originZone(nodeCount(), false), destinationZone(nodeCount(), false);
     QVector<int> zoneQueue{from};
     originZone[from] = true;
     for (int q = 0; q < zoneQueue.size(); ++q)
-        for (const auto &e : nodes[zoneQueue[q]].edges)
-            if (localRoad[e.way] && !originZone[e.destination]) {
+        for (int i = 0; i < edgeCount(zoneQueue[q]); ++i) {
+            const auto e = edge(zoneQueue[q], i);
+            if (isLocal(e.way) && !originZone[e.destination]) {
                 originZone[e.destination] = true;
                 zoneQueue.append(e.destination);
             }
+        }
     zoneQueue = {to};
     destinationZone[to] = true;
     for (int q = 0; q < zoneQueue.size(); ++q)
-        for (int u : localIncoming[zoneQueue[q]])
+        for (int i = 0; i < incomingCount(zoneQueue[q]); ++i) {
+            const int u = incoming(zoneQueue[q], i);
             if (!destinationZone[u]) {
                 destinationZone[u] = true;
                 zoneQueue.append(u);
             }
+        }
 
     auto transition = [&](int state, int token) {
+        if (mapped) return mapped->transition(state, token);
         while (state && !trie[state].next.contains(token))
             state = trie[state].fail;
         return trie[state].next.value(token, 0);
@@ -322,9 +329,9 @@ struct RoutingGraph::Impl {
             found = true;
             break;
         }
-        for (int i = 0; i < nodes[node].edges.size(); ++i) {
-            const auto &edge = nodes[node].edges[i];
-            bool local = localRoad[edge.way];
+        for (int i = 0; i < edgeCount(node); ++i) {
+            const auto edge = this->edge(node, i);
+            bool local = isLocal(edge.way);
             int nextPhase = phase;
             if (local) {
                 if (phase == 0 && originZone[node] && originZone[edge.destination])
@@ -339,7 +346,7 @@ struct RoutingGraph::Impl {
                 nextPhase = 1;
             }
             int nextPrefix = transition(prefix, edge.token);
-            if (trie[nextPrefix].forbidden)
+            if (mapped ? mapped->forbidden(nextPrefix) : trie[nextPrefix].forbidden)
                 continue;
             State nextState = stateKey(edge.destination, nextPrefix, nextPhase);
             const double next =
@@ -371,15 +378,15 @@ struct RoutingGraph::Impl {
     QString previousName;
     double previousBearing = 0;
     for (int i = 0; i < path.size(); ++i) {
-        const auto coordinate = nodes[path[i]].coordinate;
+        const auto coordinate = this->coordinate(path[i]);
         coordinates.append(QJsonArray{coordinate.longitude(), coordinate.latitude()});
         cumulative.append(distance);
         if (i == path.size() - 1)
             break;
-        const auto &edge = nodes[path[i]].edges[pathEdges[i]];
-        routeRoadIds.append(roadIds[edge.way]);
-        const QString name = names[edge.way];
-        const double bearing = coordinate.azimuthTo(nodes[path[i + 1]].coordinate);
+        const auto edge = this->edge(path[i], pathEdges[i]);
+        routeRoadIds.append(roadId(edge.way));
+        const QString name = this->name(edge.way);
+        const double bearing = coordinate.azimuthTo(this->coordinate(path[i + 1]));
         const double turn = i == 0 ? 0 : bearingDelta(previousBearing, bearing);
         if (i == 0 || (std::abs(turn) > 35 && edge.distance > 3) ||
             (name != previousName && !name.isEmpty())) {
@@ -417,7 +424,7 @@ struct RoutingGraph::Impl {
             {"finishOffset", finishOffset},
             {"mode", mode},
             {"strategy", strategy},
-            {"graphNodes", nodes.size()},
+            {"graphNodes", nodeCount()},
             {"junctionNodes", sharedNodes},
             {"appliedRestrictions", applied},
             {"limitations", requireDecodedAccess
@@ -441,4 +448,28 @@ QJsonObject planGarminRoute(const QJsonArray &ways, const QGeoCoordinate &start,
                             const QString &mode, const QString &strategy, const QJsonArray &restrictions,
                             bool requireDecodedAccess) {
     return RoutingGraph(ways, restrictions, mode, requireDecodedAccess).route(start, finish, strategy);
+}
+
+RoutingGraph::RoutingGraph() : impl(new Impl) {}
+QString RoutingGraph::travelMode() const { return impl->mode; }
+bool RoutingGraph::save(const QString &path, QString *error) const {
+    QJsonObject metadata{{"mode", impl->mode}, {"strict", impl->requireDecodedAccess},
+        {"applied", impl->applied}, {"sharedNodes", impl->sharedNodes}};
+    if (!impl->failure.isEmpty()) metadata.insert("error", impl->failure.value("error"));
+    if (impl->mapped) { *error = "不能重新编译已映射的图。"; return false; }
+    return GraphStorage::write(path, metadata, impl->nodes, impl->names, impl->roadIds,
+                               impl->localRoad, impl->trie, impl->localIncoming, error);
+}
+std::unique_ptr<RoutingGraph> RoutingGraph::load(const QString &path, QString *error) {
+    auto mapped = GraphStorage::open(path, error);
+    if (!mapped) return {};
+    auto graph = std::unique_ptr<RoutingGraph>(new RoutingGraph);
+    auto &p = *graph->impl;
+    p.mode = mapped->metadata.value("mode").toString();
+    p.requireDecodedAccess = mapped->metadata.value("strict").toBool();
+    p.applied = mapped->metadata.value("applied").toInt();
+    p.sharedNodes = mapped->metadata.value("sharedNodes").toInt();
+    if (mapped->metadata.contains("error")) p.failure.insert("error", mapped->metadata.value("error"));
+    p.mapped = std::move(mapped);
+    return graph;
 }

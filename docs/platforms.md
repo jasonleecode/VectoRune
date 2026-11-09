@@ -25,13 +25,17 @@ cmake --build build/core-only --parallel 8
 ctest --test-dir build/core-only --output-on-failure
 ```
 
+启用 Garmin 时还需要 Boost 的 CMake 包/头文件（用于几何简化与裁剪）和 Qt Network（用于本机瓦片服务）。Mac 可用 `brew install qt cmake boost` 安装这些构建依赖；QMapLibre 仍单独提供。交叉编译时应把 Boost 头文件与包配置放入目标 SDK。
+
+瓦片服务只监听 `127.0.0.1` 的随机端口，不需要外网；运行环境必须允许本机 TCP 通信。测试 `geometry_loopback` 标记为 `loopback`，受限沙箱中可先用 `ctest -LE loopback` 运行其他测试，再在允许回环通信的环境运行它。
+
 ## 安装布局
 
 ```sh
 cmake --install build --prefix /absolute/path/to/stage
 ```
 
-- `bin/`：主程序和地图导入、路由、搜索、检查程序。
+- `bin/`：主程序和地图导入、路由、搜索、检查程序，以及 `mapviewer_geometry_service` 瓦片服务。
 - macOS 的 `.app/Contents/MacOS/` 同时包含运行所需辅助程序；MapLibre geoservices 插件进入 `.app/Contents/PlugIns/`。
 - `bin/vectorune-convert-osm`：PC 端转换入口；配置位于 `share/vectorune/tilemaker/`。
 - 地图数据没有自动打包。使用 `VECTORUNE_DATA_DIR`、命令行文件参数或文件选择器指定地图。

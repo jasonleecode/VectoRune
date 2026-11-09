@@ -4,6 +4,7 @@
 #include "placeindex.h"
 #include "routing/routeservice.h"
 #include <memory>
+#include <QTemporaryFile>
 class GarminBackend final : public MapBackend {
 public:
     explicit GarminBackend(QObject *parent = nullptr);
@@ -15,6 +16,7 @@ public:
 private:
     std::shared_ptr<ImportCache> cache;
     bool importing = false;
+    std::unique_ptr<QTemporaryFile> styleFile;
     std::unique_ptr<PlaceIndex> places;
     QString routingFile;
     RouteService *routeService = nullptr;

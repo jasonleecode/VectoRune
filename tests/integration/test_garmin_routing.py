@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 helper, source = map(Path, sys.argv[1:3])
+compiled = Path(sys.argv[3]) if len(sys.argv) > 3 else source
 network = json.loads(source.read_text())
 assert network["complete"]
 
@@ -59,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix="garmin-routing-test-") as temporary:
         start, finish = restriction["nodes"][0], restriction["nodes"][-1]
         before = plan(unrestricted, start, finish)
         if contains(before, restriction):
-            after = plan(source.resolve(), start, finish)
+            after = plan(compiled.resolve(), start, finish)
             assert not contains(after, restriction), restriction
             assert "error" in after or after["distance"] >= before["distance"] - 0.01
             checked += 1

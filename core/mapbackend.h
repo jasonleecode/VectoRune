@@ -18,6 +18,7 @@ public:
     virtual void planRoute(const QGeoCoordinate &, const QGeoCoordinate &,
                            const QString &, const QString &);
 signals:
+    void runtimeError(const QString &message);
     void prepared(const QVariantMap &result);
     void routeReady(const QVariantMap &result);
     void placesReady(const QVariantMap &result);

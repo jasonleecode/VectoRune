@@ -24,7 +24,7 @@ docs/          设计审视、实施进度和平台说明
 experiments/   历史 navit、navitdrv、Web 实验，不参与主构建
 ```
 
-从仓库根目录构建（Qt 6.5+，桌面界面还需要 QMapLibre Location）：
+从仓库根目录构建（Qt 6.5+；Garmin 需要 Boost 头文件和 Qt Network，桌面界面还需要 QMapLibre Location）：
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
@@ -54,6 +54,11 @@ python3 tools/convert_osm.py data/maps/Beijing.osm.pbf output/beijing.mbtiles
 该入口需要先构建 tilemaker 或通过 `--tilemaker` 指定可执行文件。
 OSM PBF → Garmin IMG 尚未接入；条件时段路由也尚未实现。
 
+Garmin 首次加载预生成 SQLite 几何空间/层级索引和三种出行模式的紧凑路网。
+显示时按瓦片范围读取几何，经本机回环服务提供给 MapLibre；规划时直接映射路网文件。
+缓存命中无需重新导入或建图，运行时不再读取整份 GeoJSON。首次预处理仍有全图解析和建图开销。
+
 详见 [Mapviewer 使用说明](mapviewer/README.md)、
-[重构实施记录](docs/refactoring-progress-2026-11-09.md) 和
+[重构实施记录](docs/refactoring-progress-2026-11-09.md)、
+[几何分块与紧凑路网](docs/spatial-routing-index-2026-11-09.md) 和
 [ARM 构建与验收](docs/platforms.md)。

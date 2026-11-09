@@ -97,6 +97,7 @@ ApplicationWindow {
     Connections {
         target: mapDocument
         function onPrepared(result) { appWindow.applyMapResult(result) }
+        function onRuntimeError(message) { stackView.showMessage(qsTr("地图服务异常"), message) }
     }
 
     function applyMapResult(result) {

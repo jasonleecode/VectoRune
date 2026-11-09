@@ -4,6 +4,7 @@ MapDocument::MapDocument(MapRegistry registry, QObject *parent)
 void MapDocument::activate(const std::shared_ptr<MapBackend> &backend) {
     if (active) disconnect(active.get(), nullptr, this, nullptr);
     active = backend;
+    connect(active.get(), &MapBackend::runtimeError, this, &MapDocument::runtimeError);
     connect(active.get(), &MapBackend::routeReady, this, &MapDocument::routeReady);
     connect(active.get(), &MapBackend::placesReady, this, &MapDocument::placesReady);
 }

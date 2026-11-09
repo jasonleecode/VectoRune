@@ -15,6 +15,7 @@
 #include "attributes.h"
 #include "network.h"
 #include "placeindex.h"
+#include "geometryindex.h"
 
 static int parserWarnings = 0;
 static void parserLog(char *, int, int level, char *format, ...)
@@ -80,8 +81,11 @@ int main(int argc, char **argv)
     QDir output(QString::fromLocal8Bit(argv[2]));
     if (!output.mkpath(".")) return 3;
     QFile geojson(output.filePath("map.geojson"));
-    if (!geojson.open(QIODevice::WriteOnly)) return 3;
-    geojson.write("{\"type\":\"FeatureCollection\",\"features\":[");
+    if (argc == 3) {
+        if (!geojson.open(QIODevice::WriteOnly)) return 3;
+        geojson.write("{\"type\":\"FeatureCollection\",\"features\":[");
+    }
+    GeometryIndex geometryIndex(output.filePath("geometry.sqlite"), true);
     int points = 0, lines = 0, polygons = 0, skipped = 0;
     QJsonArray poiIndex;
     PlaceIndex places(output.filePath("places.sqlite"), true);
@@ -159,12 +163,18 @@ int main(int argc, char **argv)
                 routingWays.append(routing);
             }
         }
-        if (points + lines + polygons > 1) geojson.write(",");
-        const auto bytes = QJsonDocument(feature).toJson(QJsonDocument::Compact);
-        if (geojson.write(bytes) != bytes.size()) return 3;
+        geometryIndex.add(feature);
+        if (argc == 3) {
+            if (points + lines + polygons > 1) geojson.write(",");
+            const auto bytes = QJsonDocument(feature).toJson(QJsonDocument::Compact);
+            if (geojson.write(bytes) != bytes.size()) return 3;
+        }
     }
-    geojson.write("]}");
-    if (!geojson.flush() || points + lines + polygons == 0) return 3;
+    gar_free_objects(objects);
+    objects = nullptr;
+    if (argc == 3) { geojson.write("]}"); if (!geojson.flush()) return 3; }
+    if (points + lines + polygons == 0) return 3;
+    geometryIndex.commit();
     QJsonObject metadata{{"points", points}, {"lines", lines}, {"polygons", polygons},
         {"skipped", skipped}, {"parserWarnings", parserWarnings}, {"resolutionBits", bits},
         {"west", west}, {"east", east}, {"south", south}, {"north", north},

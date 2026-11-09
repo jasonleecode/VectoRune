@@ -14,6 +14,7 @@ public:
     Q_INVOKABLE void retainForRenderer(QObject *renderer);
     QStringList fileFilters() const { return registry.fileFilters(); }
 signals:
+    void runtimeError(const QString &message);
     void prepared(const QVariantMap &result);
     void routeReady(const QVariantMap &result);
     void placesReady(const QVariantMap &result);
