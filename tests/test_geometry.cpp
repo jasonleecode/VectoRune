@@ -50,12 +50,24 @@ int main(int argc, char **argv) {
             index.add(feature("Point", {116, 40}, "far", "poi"));
             index.add(
                 feature("LineString", {QJsonArray{179.99, 0}, QJsonArray{-179.99, 0}}, "dateline", "major"));
+            // Self-intersecting land boundary from Beijing_gmapsupp.img.
+            // It lies at the southern edge of the tile, but clipping it without
+            // validation can produce a polygon covering the entire tile.
+            index.add(feature("Polygon", QJsonArray{QJsonValue(ring({
+                {72.25, 4163.145278}, {175.5, 4102.613479}, {159, 4102.286270},
+                {157.5, 4103.267895}, {154.75, 4100.323017}, {127.5, 4100.323017},
+                {121, 4105.231143}, {118.25, 4101.631853}, {116, 4095.414867},
+                {115, 4093.124389}, {106.75, 4096.069288}, {107.75, 4099.014179},
+                {113.25, 4114.720122}, {110.75, 4115.701735}, {126.5, 4159.546189},
+                {98.25, 4159.546189}, {97.75, 4155.947088}, {92.25, 4155.619896},
+                {92.25, 4159.546189}
+            }))}, "self-intersection", "area"));
             index.commit();
         }
         GeometryIndex index(directory.filePath("geometry.sqlite"), false);
         int read = 0;
         auto bytes = index.tile(14, 8192, 8192, &read);
-        if (read != 4)
+        if (read != 5)
             throw std::runtime_error("spatial query read outside features");
         QFile tile(directory.filePath("tile.pbf"));
         if (!tile.open(QIODevice::WriteOnly) || tile.write(bytes) != bytes.size())

@@ -76,5 +76,6 @@ with tempfile.TemporaryDirectory() as directory:
     assert abs(area(outer)+area(hole) - 8_000_000) < 10_000
     pieces = features['split'][1]
     assert len(pieces) == 2 and all(area(p) > 0 for p in pieces)
+    assert 'self-intersection' not in features, 'invalid polygon must not fill an empty tile'
     assert len(features) == 4
-print('PASS: independent MVT geometry, buffer bounds, concave split, holes and winding')
+print('PASS: independent MVT geometry, buffer bounds, concave split, holes, winding and invalid polygon rejection')

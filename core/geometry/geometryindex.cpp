@@ -153,6 +153,12 @@ QByteArray geometry(int kind, const QJsonArray &coordinates, int z, int x, int y
                 ring.push_back(project(v.toArray(), scale, x, y, shift));
         }
         bg::correct(poly);
+        // correct() only fixes closure and winding, not self-intersections.
+        // Overlay on an invalid ring can return the entire clipping box, even
+        // when the source occupies only a tiny sliver at the tile edge. Check
+        // here as well as simplification so existing imported indexes are safe.
+        if (!bg::is_valid(poly))
+            return {};
         std::vector<Polygon> clipped;
         bg::intersection(poly, bounds, clipped);
         for (const auto &part : clipped) {
