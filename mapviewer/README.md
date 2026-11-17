@@ -61,6 +61,73 @@ Qt/MapLibre library and plugin paths and `QSG_RHI_BACKEND=opengl`:
 build/tests/mapviewer_interaction_tests -input tests/ui/tst_labels.qml
 ```
 
+## Linux window resizing
+
+For the same QMapLibre revision, apply
+[`maplibre-opengl-resize.patch`](../patches/maplibre-opengl-resize.patch) to fix
+maps retaining their original size after maximizing or resizing the window.
+The QML view already follows the window size. The OpenGL backend must resize
+its existing framebuffer attachments when `Map::resize()` omits an FBO, and
+the Qt texture wrapper must follow physical size changes even when OpenGL
+reuses a texture ID. The scene graph rectangle also follows the logical size.
+
+Stop the viewer before installing rebuilt libraries:
+
+```sh
+git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-resize.patch"
+cmake --build build/deps/maplibre-build --parallel 8
+cmake --install build/deps/maplibre-build
+```
+
+`tests/ui/tst_resize.qml` grows and shrinks the window, maximizes it and restores
+it. It checks rendered pixels at all four corners, the geographic center and
+label scale. Run with the same Qt/MapLibre environment as the viewer:
+
+```sh
+build/tests/mapviewer_interaction_tests -input tests/ui/tst_resize.qml
+QT_SCALE_FACTOR=1.5 build/tests/mapviewer_interaction_tests -input tests/ui/tst_resize.qml
+```
+
+## Linux panning performance
+
+After the label-synchronization patch above, apply
+[`maplibre-opengl-ubo-streaming.patch`](../patches/maplibre-opengl-ubo-streaming.patch)
+to the same dependency revision. Synchronously mapping every small uniform
+update can stall the CPU on GPU work, especially in a maximized window.
+This patch stages updates in each 8 KiB buffer page, then uploads the changed
+range with ordered `glBufferSubData` when the page is first bound for drawing.
+Compaction uses the same staged path. Buffer pooling, GPU fences and reclamation
+remain enabled; no unsynchronized mapping or map-detail reduction is used.
+Each allocated page has an additional 8 KiB CPU staging allocation, released
+when the page is reclaimed.
+
+Stop the viewer before installing the rebuilt libraries:
+
+```sh
+git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-ubo-streaming.patch"
+cmake --build build/deps/maplibre-build --parallel 8
+cmake --install build/deps/maplibre-build
+```
+
+The opt-in benchmark `tests/benchmarks/tst_pan.qml` compares a 1080×640 window
+with a maximized window, using a time-based pan trajectory at zoom 15. Each
+case warms up for five seconds, then records frame-swap intervals for five
+seconds. It reports mean FPS and median/95th-percentile frame intervals, without
+taking screenshots during measurement. Use the viewer's Qt/MapLibre environment
+and a style whose tile and glyph sources remain available throughout the run:
+
+```sh
+VECTORUNE_BENCH_STYLE=file:///absolute/path/style.json \
+QT_LOGGING_RULES='maplibre.debug.debug=false' \
+build/tests/mapviewer_interaction_tests -input tests/benchmarks/tst_pan.qml
+```
+
+On the local NVIDIA RTX 3080, the Beijing Garmin fixture at 3368×1376 improved
+from 15.7 to 39.7 mean FPS, with the 95th-percentile frame interval decreasing
+from 186 to 50 ms. The comparison uses the label/resize fixes in both builds;
+the 1080×640 case remained around 62 FPS. These are local measurements rather
+than portable test thresholds.
+
 ## Map data and style
 
 The upper-right toolbar provides place search, a rotating compass (click to

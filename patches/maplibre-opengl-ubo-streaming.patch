@@ -1,0 +1,138 @@
+--- a/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
++++ b/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
+@@ -74,6 +74,26 @@
+         // Backing GL object for this buffer
+         GLuint id = 0;
+
++        // Stage writes until this page is first bound for drawing. A page can
++        // contain many small UBOs; upload its changed range once, not per UBO.
++        std::vector<std::byte> staging = std::vector<std::byte>(PageSize);
++        mutable size_t dirtyBegin = PageSize;
++        mutable size_t dirtyEnd = 0;
++
++        void stage(size_t offset, const void* data, size_t size) {
++            std::memcpy(staging.data() + offset, data, size);
++            dirtyBegin = std::min(dirtyBegin, offset);
++            dirtyEnd = std::max(dirtyEnd, offset + size);
++        }
++
++        void flush() const {
++            if (dirtyBegin >= dirtyEnd) return;
++            MBGL_CHECK_ERROR(glBindBuffer(type, id));
++            MBGL_CHECK_ERROR(glBufferSubData(type, dirtyBegin, dirtyEnd - dirtyBegin, staging.data() + dirtyBegin));
++            dirtyBegin = PageSize;
++            dirtyEnd = 0;
++        }
++
+         // Tombstones indicating a removed ref. When a Ref is removed, a tombstone is added to this
+         // counter. This is much faster vs. erasing from our vector. This works because we enforce
+         // a monotonic allocation scheme on our buffers and recycle the whole buffer at once.
+@@ -107,6 +127,7 @@
+         void reclaim() {
+             refs.clear();
+             refs = decltype(refs)();
++            staging = decltype(staging)();
+
+             if (id != 0) {
+                 glDeleteBuffers(1, &id);
+@@ -120,6 +141,9 @@
+               pointer(rhs.pointer),
+               refs(std::move(rhs.refs)),
+               id(rhs.id),
++              staging(std::move(rhs.staging)),
++              dirtyBegin(rhs.dirtyBegin),
++              dirtyEnd(rhs.dirtyEnd),
+               tombstones(rhs.tombstones),
+               occupancyBytes(rhs.occupancyBytes),
+               bufferIndex(rhs.bufferIndex) {
+@@ -132,6 +156,9 @@
+             pointer = rhs.pointer;
+             refs = std::move(rhs.refs);
+             id = rhs.id;
++            staging = std::move(rhs.staging);
++            dirtyBegin = rhs.dirtyBegin;
++            dirtyEnd = rhs.dirtyEnd;
+             rhs.id = 0;
+             tombstones = rhs.tombstones;
+             occupancyBytes = rhs.occupancyBytes;
+@@ -145,6 +172,8 @@
+         void reset() {
+             assert(refs.size() - tombstones == 0);
+             pointer = tombstones = occupancyBytes = 0;
++            dirtyBegin = PageSize;
++            dirtyEnd = 0;
+             refs.clear();
+         }
+
+@@ -260,26 +289,14 @@
+             assert(0);
+             return false;
+         }
+-        MBGL_CHECK_ERROR(glBindBuffer(type, buffer->id));
+-
+-        // Map the next available slice of memory
+-        auto* buf = MBGL_CHECK_ERROR(
+-            glMapBufferRange(type,
+-                             buffer->pointer,
+-                             alignedSize,
+-                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT));
++        // Queue the copy instead of mapping shared UBO storage. Synchronous
++        // mappings stall on in-flight draws; unsynchronized mappings caused
++        // corruption when pages were reused. BufferSubData preserves ordering
++        // while allowing the driver to stage these small uploads.
+         const auto writtenIndex = buffer->pointer;
+-
+-        if (buf) {
+-            std::memcpy(buf, data, size);
+-            MBGL_CHECK_ERROR(glUnmapBuffer(type));
+-
+-            residentBuffer = buffer->addRef(nullptr, writtenIndex, size);
+-            buffer->pointer += alignedSize;
+-        } else {
+-            assert(0);
+-            return false;
+-        }
++        buffer->stage(writtenIndex, data, size);
++        residentBuffer = buffer->addRef(nullptr, writtenIndex, size);
++        buffer->pointer += alignedSize;
+
+ #ifndef NDEBUG
+         MBGL_CHECK_ERROR(glBindBuffer(type, 0));
+@@ -386,7 +403,10 @@
+
+     size_t pageSize() const noexcept override { return PageSize; }
+
+-    int32_t getBufferID(size_t bufferIndex) const noexcept override { return buffers[bufferIndex].id; }
++    int32_t getBufferID(size_t bufferIndex) const noexcept override {
++        buffers[bufferIndex].flush();
++        return buffers[bufferIndex].id;
++    }
+
+ private:
+     size_t newBuffer() noexcept {
+@@ -436,20 +456,11 @@
+         auto& destBuffer = buffers[toIndex];
+         const auto recycledWriteIndex = destBuffer.pointer;
+
+-        auto* buf = MBGL_CHECK_ERROR(
+-            glMapBufferRange(type,
+-                             recycledWriteIndex,
+-                             alignedSize,
+-                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT));
+-
+-        if (buf) {
+-            std::memcpy(buf, ref.getOwner()->getManagedBuffer().getContents().data(), ref.getOwner()->getSize());
+-            MBGL_CHECK_ERROR(glUnmapBuffer(type));
+-            destBuffer.pointer += alignedSize;
+-        } else {
+-            assert(0);
+-            return false;
+-        }
++        // Compaction uploads follow the same ordered path as regular writes.
++        destBuffer.stage(recycledWriteIndex,
++                         ref.getOwner()->getManagedBuffer().getContents().data(),
++                         ref.getSize());
++        destBuffer.pointer += alignedSize;
+
+         // 2.c: Now the ref must be made aware of the relocation of its contents.
+         // Note that this means defragmentation can never run on refs that are

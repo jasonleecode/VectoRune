@@ -1,0 +1,53 @@
+--- a/src/core/rendering/opengl_renderer_backend.cpp
++++ b/src/core/rendering/opengl_renderer_backend.cpp
+@@ -93,10 +93,15 @@
+     const auto width = static_cast<GLsizei>(newSize.width);
+     const auto height = static_cast<GLsizei>(newSize.height);
+
+-    // Skip texture creation for default framebuffer
++    // Map::resize() has no FBO argument. Resize an existing target instead
++    // of updating only `size`, which would make the next explicit FBO update
++    // incorrectly treat the old texture allocation as already resized.
+     if (fbo == 0) {
+-        size = newSize;
+-        return;
++        if (m_fbo == 0) {
++            size = newSize;
++            return;
++        }
++        fbo = m_fbo;
+     }
+
+     // Skip if FBO and size are unchanged and we already have a texture — avoids
+--- a/src/quick/texture_node_opengl.cpp
++++ b/src/quick/texture_node_opengl.cpp
+@@ -85,10 +85,13 @@
+     gl->glBindFramebuffer(GL_FRAMEBUFFER, prevFbo);
+
+     const GLuint maplibreTextureId = m_map->getFramebufferTextureId();
+-    if (maplibreTextureId > 0 && maplibreTextureId != m_cachedTextureId) {
+-        // Texture ID changed (e.g. after resize): delete old wrapper and create new one.
++    const QSize physicalSize = m_size * m_pixelRatio;
++    if (maplibreTextureId > 0 &&
++        (maplibreTextureId != m_cachedTextureId || !m_cachedQSGTexture ||
++         m_cachedQSGTexture->textureSize() != physicalSize)) {
++        // GL may reuse the same texture ID after resize. Qt's native wrapper
++        // must still be recreated when its physical dimensions change.
+         delete m_cachedQSGTexture;
+-        const QSize physicalSize = m_size * m_pixelRatio;
+         m_cachedQSGTexture = QNativeInterface::QSGOpenGLTexture::fromNative(
+             maplibreTextureId, window, physicalSize, QQuickWindow::TextureHasAlphaChannel);
+         m_cachedTextureId = maplibreTextureId;
+@@ -96,10 +99,11 @@
+         if (m_cachedQSGTexture != nullptr) {
+             setOwnsTexture(false);
+             setTexture(m_cachedQSGTexture);
+-            setRect(QRectF(QPointF(), m_size));
+             setFiltering(QSGTexture::Linear);
+         }
+     }
+
++    // Logical geometry can change even when the native texture ID does not.
++    setRect(QRectF(QPointF(), m_size));
+     markDirty(QSGNode::DirtyMaterial);
+ }

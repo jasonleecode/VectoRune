@@ -11,15 +11,54 @@
 #include <QTemporaryFile>
 #include <QDir>
 #include <QFileInfo>
+#include <QElapsedTimer>
+#include <QMutex>
+#include <QMutexLocker>
+#include <algorithm>
+#include <numeric>
 
 class InteractionSetup : public QObject {
     Q_OBJECT
     QTemporaryFile labelStyle;
+    QElapsedTimer frameClock;
+    QMutex frameMutex;
+    QVector<double> frameTimes;
+    qint64 previousFrame = 0;
+    QMetaObject::Connection frameConnection;
 public slots:
+    QString benchmarkStyle() const { return qEnvironmentVariable("VECTORUNE_BENCH_STYLE"); }
+    void startFrameTiming(QQuickItem *item) {
+        disconnect(frameConnection);
+        {
+            QMutexLocker lock(&frameMutex);
+            frameTimes.clear();
+            previousFrame = 0;
+            frameClock.start();
+        }
+        frameConnection = connect(item->window(), &QQuickWindow::frameSwapped, this, [this] {
+            QMutexLocker lock(&frameMutex);
+            const auto now = frameClock.nsecsElapsed();
+            if (previousFrame)
+                frameTimes.append((now - previousFrame) / 1000000.0);
+            previousFrame = now;
+        }, Qt::DirectConnection);
+    }
+    QVariantMap finishFrameTiming() {
+        disconnect(frameConnection);
+        QMutexLocker lock(&frameMutex);
+        if (frameTimes.isEmpty()) return {};
+        std::sort(frameTimes.begin(), frameTimes.end());
+        const double mean = std::accumulate(frameTimes.begin(), frameTimes.end(), 0.0) / frameTimes.size();
+        return {{"frames", frameTimes.size()}, {"mean_ms", mean}, {"fps", 1000.0 / mean},
+                {"p50_ms", frameTimes[frameTimes.size() / 2]},
+                {"p95_ms", frameTimes[qMin(frameTimes.size() - 1, frameTimes.size() * 95 / 100)]}};
+    }
     QUrl localLabelStyle(const QUrl &url) {
         QFile file(url.toLocalFile());
         if (!file.open(QIODevice::ReadOnly) || !labelStyle.open())
             return {};
+        labelStyle.resize(0);
+        labelStyle.seek(0);
         auto style = QJsonDocument::fromJson(file.readAll()).object();
         const auto fonts = QFileInfo(file).dir().absoluteFilePath("../../plugins/garmin/resources/fonts");
         style.insert("glyphs", QUrl::fromLocalFile(fonts).toString() + "/{range}.pbf");
@@ -49,8 +88,10 @@ public slots:
         // to subpixel antialiasing. The marker uses the same map projection.
         const auto offset = (QRectF(inkBounds).center() - QRectF(markerBounds).center())
                             / image.devicePixelRatio();
+        const auto markerOffset = (QRectF(markerBounds).center() - center) / image.devicePixelRatio();
         return {{"count", count}, {"markerCount", markerCount},
-                {"x", offset.x()}, {"y", offset.y()}};
+                {"x", offset.x()}, {"y", offset.y()},
+                {"markerX", markerOffset.x()}, {"markerY", markerOffset.y()}};
     }
     void qmlEngineAvailable(QQmlEngine *engine) {
         QCoreApplication::addLibraryPath(QCoreApplication::applicationDirPath() + "/../PlugIns");
@@ -62,6 +103,17 @@ public slots:
         QWheelEvent event(local, global, QPoint(0, delta), QPoint(), Qt::NoButton,
                           Qt::NoModifier, Qt::ScrollUpdate, false);
         QCoreApplication::sendEvent(item->window(), &event);
+    }
+    QStringList mapEdgeSamples(QQuickItem *item) {
+        const auto image = item->window()->grabWindow();
+        QStringList colors;
+        for (const auto &point : {QPointF(16, 16), QPointF(item->width() - 16, 16),
+                                  QPointF(16, item->height() - 16),
+                                  QPointF(item->width() - 16, item->height() - 16)}) {
+            const auto pixel = (item->mapToScene(point) * image.devicePixelRatio()).toPoint();
+            colors.append(image.rect().contains(pixel) ? image.pixelColor(pixel).name() : "outside");
+        }
+        return colors;
     }
 };
 
