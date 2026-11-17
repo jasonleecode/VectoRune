@@ -17,6 +17,7 @@
 #include <QMutexLocker>
 #include <algorithm>
 #include <numeric>
+#include "gpxtrack.h"
 
 class InteractionSetup : public QObject {
     Q_OBJECT
@@ -27,6 +28,21 @@ class InteractionSetup : public QObject {
     qint64 previousFrame = 0;
     QMetaObject::Connection frameConnection;
 public slots:
+    QVariantMap readGpx(const QUrl &url) { return GpxTrack().read(url); }
+    int colorPixelsNear(QQuickItem *item, QPointF point, const QString &expected) {
+        const auto image = item->window()->grabWindow();
+        const auto center = item->mapToScene(point) * image.devicePixelRatio();
+        const QColor target(expected);
+        int count = 0;
+        const QRect area = QRect(int(center.x()) - 7, int(center.y()) - 7, 15, 15).intersected(image.rect());
+        for (int y = area.top(); y <= area.bottom(); ++y)
+            for (int x = area.left(); x <= area.right(); ++x) {
+                const auto color = image.pixelColor(x, y);
+                if (qAbs(color.red() - target.red()) + qAbs(color.green() - target.green())
+                    + qAbs(color.blue() - target.blue()) < 35) ++count;
+            }
+        return count;
+    }
     QString benchmarkStyle() const { return qEnvironmentVariable("VECTORUNE_BENCH_STYLE"); }
     QVariantMap benchmarkOptions() const {
         return QJsonDocument::fromJson(qgetenv("VECTORUNE_BENCH_OPTIONS")).object().toVariantMap();

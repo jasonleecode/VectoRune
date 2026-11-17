@@ -13,6 +13,16 @@ qt_add_executable(qml_location_mapviewer WIN32 MACOSX_BUNDLE
     locationpermissionfallback.h
 )
 vectorune_deploy_inputcontext(qml_location_mapviewer)
+qt_add_resources(qml_location_mapviewer app_icon PREFIX /icons BASE resources
+    FILES resources/mapviewer.svg)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
+    configure_file(org.vectorune.mapviewer.desktop.in org.vectorune.mapviewer.desktop @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.vectorune.mapviewer.desktop"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+    install(FILES resources/mapviewer.svg
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
+        RENAME org.vectorune.mapviewer.svg)
+endif()
 vectorune_deploy_maplibre_qml(qml_location_mapviewer)
 get_target_property(maplibre_qml_type QMapLibre::PluginQmlLocation TYPE)
 if(NOT APPLE AND NOT maplibre_qml_type STREQUAL "STATIC_LIBRARY")
@@ -88,6 +98,7 @@ qt_add_qml_module(qml_location_mapviewer
         "NavigationPanel.qml"
         "ConversionDialog.qml"
         "map/MapTools.qml"
+        "map/TrackSummary.qml"
         "menus/ItemPopupMenu.qml"
         "menus/MainMenu.qml"
         "menus/MapPopupMenu.qml"

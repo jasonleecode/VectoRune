@@ -15,12 +15,22 @@ Item {
     property bool buildings3dEnabled: false
     property var buildingParameter: null
     property bool styleReady: false
+    property var track: null
+    property bool trackStyleAdded: false
+
+    function syncTrack() {
+        if (!styleReady || !track || trackStyleAdded) return
+        mapStyle.addParameter(trackSource.createObject(mapStyle))
+        mapStyle.addParameter(trackLayer.createObject(mapStyle))
+        trackStyleAdded = true
+    }
+    onTrackChanged: syncTrack()
 
     function syncBuildings() {
         if (!styleReady) return
         if (buildings3dAvailable && !buildingParameter) {
-            buildingParameter = buildingLayer.createObject(buildingStyle)
-            buildingStyle.addParameter(buildingParameter)
+            buildingParameter = buildingLayer.createObject(mapStyle)
+            mapStyle.addParameter(buildingParameter)
         }
         if (!buildings3dAvailable) buildings3dEnabled = false
     }
@@ -35,7 +45,25 @@ Item {
             map.tilt = Math.min(map.maximumTilt, 55)
         } else map.tilt = 0
     }
-    Component.onCompleted: { styleReady = true; syncBuildings() }
+    Component.onCompleted: { styleReady = true; syncBuildings(); syncTrack() }
+    Component {
+        id: trackSource
+        ML.SourceParameter {
+            styleId: "vectorune-track"
+            type: "geojson"
+            property string data: root.track ? root.track.geoJson : '{"type":"FeatureCollection","features":[]}'
+        }
+    }
+    Component {
+        id: trackLayer
+        ML.LayerParameter {
+            styleId: "vectorune-track-line"
+            type: "line"
+            property string source: "vectorune-track"
+            layout: ({"line-cap": "round", "line-join": "round"})
+            paint: ({"line-color": ["get", "color"], "line-width": 5})
+        }
+    }
     Component {
         id: buildingLayer
         ML.LayerParameter {
@@ -61,7 +89,7 @@ Item {
     Map {
         id: map
         anchors.fill: parent
-        ML.MapLibre.style: ML.Style { id: buildingStyle }
+        ML.MapLibre.style: ML.Style { id: mapStyle }
 
         WheelHandler {
             target: null

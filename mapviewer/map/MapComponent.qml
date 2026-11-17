@@ -27,7 +27,6 @@ InteractiveMapView {
         anchorPoint: Qt.point(9, 9)
         sourceItem: Rectangle { width: 18; height: 18; radius: 9; color: "#e75047"; border.width: 3; border.color: "white" }
     }
-    property var track: null
     property string mapAttribution: "© OpenStreetMap contributors"
     property var navigationRoute: null
     property var navigationStart: QtPositioning.coordinate()
@@ -84,17 +83,6 @@ InteractiveMapView {
         z: 22
     }
 
-    MapItemView {
-        parent: view.map
-        model: view.track ? view.track.segments : []
-        delegate: MapPolyline {
-            path: modelData
-            line.width: 5
-            line.color: "#e53c3c"
-            z: 10
-        }
-    }
-
     MapCircle {
         parent: view.map
         visible: view.track !== null
@@ -116,17 +104,14 @@ InteractiveMapView {
         z: 11
     }
 
-    Label {
+    TrackSummary {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 12
         anchors.rightMargin: 70
         z: view.map.z + 4
-        visible: view.track !== null
-        padding: 8
-        text: view.track ? view.track.name + " · " + view.track.pointCount + " 点 · "
-                          + (view.track.distance / 1000).toFixed(2) + " km" : ""
-        background: Rectangle { color: "#eaffffff"; radius: 4 }
+        width: Math.min(330, parent.width - 100)
+        track: view.track
     }
     property variant scaleLengths: [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000]
     property alias routeQuery: routeQuery

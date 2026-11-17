@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Mapviewer
+Name[zh_CN]=Mapviewer 地图查看器
+Comment=View offline maps and GPX tracks
+Comment[zh_CN]=查看离线地图和 GPX 轨迹
+Exec="@CMAKE_INSTALL_FULL_BINDIR@/qml_location_mapviewer"
+Icon=org.vectorune.mapviewer
+Terminal=false
+StartupNotify=true
+StartupWMClass=Mapviewer
+Categories=Education;Geography;

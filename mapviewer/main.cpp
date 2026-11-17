@@ -12,6 +12,7 @@
 #include <QtQml/QQmlContext>
 
 #include <QtGui/QGuiApplication>
+#include <QtGui/QIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -69,6 +70,8 @@ int main(int argc, char *argv[])
     QGuiApplication application(argc, argv);
     QCoreApplication::setOrganizationName("VectoRune");
     QCoreApplication::setApplicationName("Mapviewer");
+    QGuiApplication::setDesktopFileName("org.vectorune.mapviewer");
+    QGuiApplication::setWindowIcon(QIcon(":/icons/mapviewer.svg"));
 
     QStringList args = QCoreApplication::arguments();
     args.removeFirst();

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1" creator="VectoRune tests">
+  <trk>
+    <trkseg>
+      <trkpt lat="39.905" lon="116.404"><speed>0</speed></trkpt>
+      <trkpt lat="39.905" lon="116.406"><speed>0</speed></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="39.905" lon="116.409"><speed>40</speed></trkpt>
+      <trkpt lat="39.905" lon="116.411"><speed>40</speed></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="39.903" lon="116.406"/>
+      <trkpt lat="39.903" lon="116.409"/>
+    </trkseg>
+  </trk>
+</gpx>

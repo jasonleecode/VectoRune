@@ -32,6 +32,12 @@ Qt and QMapLibre frameworks (this is a development build, not a standalone bundl
 
 ## Linux OpenGL rendering
 
+On Linux, the viewer sets its window icon and desktop application ID to
+`org.vectorune.mapviewer`. `cmake --install build` installs the desktop entry
+under `share/applications` and the SVG icon under
+`share/icons/hicolor/scalable/apps`, so desktop launchers and the Ubuntu dock
+can identify the application.
+
 The local QMapLibre 4.0.0 checkout at commit
 `b58dfacf7548b0b5ec8a815028cab54d7951039f` needs
 [`maplibre-opengl-state.patch`](../patches/maplibre-opengl-state.patch).
@@ -209,6 +215,22 @@ directory automatically. The search-box regression test exercises preedit and
 Chinese commit events before submitting the exact Chinese search text.
 
 ### Search and location
+
+Right-click **加载轨迹…** to display a GPX track colored by speed: red at
+0 km/h, orange at 40, cyan at 80, and blue at 120 km/h or above. The on-map
+legend uses this fixed scale, allowing tracks to be compared. Gray means speed
+is unavailable. These colors describe recorded movement speed, not a live
+traffic report.
+
+The importer reads GPX `speed` and Garmin TrackPointExtension/GPXDATA speed
+fields in meters/second (see the [GPX manual](https://www.topografix.com/gpx_manual.asp)).
+Each edge uses the mean of its endpoint speeds, or the sole recorded speed
+when only one endpoint supplies it. If neither does, distance and a positive
+timestamp difference determine average speed. Zero is valid; missing, invalid,
+or reversed timestamps leave speed unknown. GPX segment boundaries are never
+connected. Rendering uses one GeoJSON source with data-driven line colors;
+adjacent edges with the same rounded km/h color are merged to limit overhead
+on long tracks. `gpx_speed_tracks` and `tst_track.qml` test parsing and rendering.
 
 The upper-right **3D** button toggles building extrusion for OpenMapTiles MBTiles
 whose building layer declares `render_height`. It is disabled for maps without
