@@ -1,0 +1,41 @@
+--- a/src/core/rendering/opengl_renderer_backend.cpp
++++ b/src/core/rendering/opengl_renderer_backend.cpp
+@@ -27,18 +27,10 @@
+         backend.restoreFramebufferBinding();
+         backend.setViewport(0, 0, backend.getSize());
+
+-        // Clear to prevent artifacts - scissor disable needed to ensure full clear
+-        const QOpenGLContext *glContext = QOpenGLContext::currentContext();
+-        if (glContext != nullptr) {
+-            QOpenGLFunctions *gl = glContext->functions();
+-
+-            // Disable scissor test to ensure full framebuffer is cleared
+-            gl->glDisable(GL_SCISSOR_TEST);
+-
+-            // Clear the framebuffer
+-            gl->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+-            gl->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+-        }
++        // Let the render pass clear through MapLibre's tracked GL state.
++        // Raw glClear/glClearColor here can erase previous passes and leave
++        // the state cache inconsistent with the actual context.
++        backend.setScissorTest(false);
+     }
+
+ private:
+@@ -77,7 +69,14 @@
+
+ void OpenGLRendererBackend::updateAssumedState() {
+     assumeFramebufferBinding(ImplicitFramebufferBinding);
+-    assumeViewport(1, 1, size); // Use 1,1 to avoid zero-size viewport issues
++    // Qt Quick shares this context. Observe its actual viewport/scissor state
++    // instead of claiming a viewport that was never applied to OpenGL.
++    auto *gl = QOpenGLContext::currentContext()->functions();
++    GLint viewport[4];
++    gl->glGetIntegerv(GL_VIEWPORT, viewport);
++    assumeViewport(viewport[0], viewport[1],
++                   {static_cast<uint32_t>(viewport[2]), static_cast<uint32_t>(viewport[3])});
++    assumeScissorTest(gl->glIsEnabled(GL_SCISSOR_TEST));
+ }
+
+ void OpenGLRendererBackend::restoreFramebufferBinding() {

@@ -3,6 +3,14 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QUrl>
+QString RuntimePaths::glyphsUrl() {
+    const QDir app(QCoreApplication::applicationDirPath());
+    for (const auto &folder : {app.filePath("fonts"), app.filePath("../share/vectorune/fonts")})
+        if (QFileInfo::exists(folder + "/KlokanTech Noto Sans CJK Regular/0-255.pbf"))
+            return QUrl::fromLocalFile(QDir(folder).absolutePath()).toString() + "/{fontstack}/{range}.pbf";
+    return {};
+}
 QString RuntimePaths::cacheDirectory() {
     const auto configured = qEnvironmentVariable("VECTORUNE_CACHE_DIR");
     return configured.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::CacheLocation)

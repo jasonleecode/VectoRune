@@ -4,6 +4,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 #include <QtGui/QWheelEvent>
+#include <QtGui/QInputMethodEvent>
 #include <QtQml/QQmlContext>
 #include <QtGui/QImage>
 #include <QJsonDocument>
@@ -27,6 +28,9 @@ class InteractionSetup : public QObject {
     QMetaObject::Connection frameConnection;
 public slots:
     QString benchmarkStyle() const { return qEnvironmentVariable("VECTORUNE_BENCH_STYLE"); }
+    QVariantMap benchmarkOptions() const {
+        return QJsonDocument::fromJson(qgetenv("VECTORUNE_BENCH_OPTIONS")).object().toVariantMap();
+    }
     void startFrameTiming(QQuickItem *item) {
         disconnect(frameConnection);
         {
@@ -103,6 +107,20 @@ public slots:
         QWheelEvent event(local, global, QPoint(0, delta), QPoint(), Qt::NoButton,
                           Qt::NoModifier, Qt::ScrollUpdate, false);
         QCoreApplication::sendEvent(item->window(), &event);
+    }
+    void sendInputMethod(QQuickItem *item, const QString &preedit, const QString &commit) {
+        QInputMethodEvent event(preedit, {});
+        event.setCommitString(commit);
+        QCoreApplication::sendEvent(item, &event);
+    }
+    QStringList backgroundSamples(QQuickItem *item) {
+        const auto image = item->window()->grabWindow();
+        QStringList colors;
+        for (const auto &point : {QPointF(400, 350), QPointF(750, 550)}) {
+            const auto pixel = item->mapToScene(point) * image.devicePixelRatio();
+            colors.append(image.pixelColor(pixel.toPoint()).name());
+        }
+        return colors;
     }
     QStringList mapEdgeSamples(QQuickItem *item) {
         const auto image = item->window()->grabWindow();

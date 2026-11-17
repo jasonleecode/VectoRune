@@ -143,6 +143,13 @@ ApplicationWindow {
         onAccepted: appWindow.loadMapFile(selectedFile)
     }
 
+    ConversionDialog {
+        id: conversionDialog
+        parent: Overlay.overlay
+        converter: mapConverter
+        onOpenMap: (url) => { appWindow.loadMapFile(url); close() }
+    }
+
     //defaults
     //! [routecoordinate]
     property variant fromCoordinate: QtPositioning.coordinate(59.9483, 10.7695)
@@ -323,6 +330,12 @@ ApplicationWindow {
 
         onSelectTool: (tool) => {
             switch (tool) {
+            case "OpenMap":
+                mapFileDialog.open()
+                break
+            case "ConvertMap":
+                conversionDialog.open()
+                break
             case "AddressRoute":
                 stackView.pop({item:page, immediate: true})
                 stackView.push("forms/RouteAddress.qml" ,

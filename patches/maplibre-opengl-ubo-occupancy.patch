@@ -1,0 +1,27 @@
+--- a/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
++++ b/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
+@@ -215,7 +215,11 @@
+             }
+
+             refs.emplace_back(bufObj, bufferIndex, bufPtr, size_);
+-            occupancyBytes += size_;
++            // Occupancy must include GL alignment padding, just like pointer.
++            // Small UBOs can fill a page while their payload bytes stay below
++            // the fragmentation threshold; counting only payload causes those
++            // full pages to be moved repeatedly during the same defrag pass.
++            occupancyBytes += align(size_, allocator.sharedBufferAlignment);
+             return &refs.back();
+         }
+
+@@ -238,8 +242,9 @@
+ #endif
+             bufObj->setOwner(nullptr);
+
+-            assert(occupancyBytes >= bufObj->getSize());
+-            occupancyBytes -= bufObj->getSize();
++            const auto allocatedSize = align(bufObj->getSize(), allocator.sharedBufferAlignment);
++            assert(occupancyBytes >= allocatedSize);
++            occupancyBytes -= allocatedSize;
+         }
+
+         // Align a pointer on a set block size

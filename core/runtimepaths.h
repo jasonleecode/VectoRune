@@ -4,4 +4,5 @@ namespace RuntimePaths {
 QString helper(const QString &name);
 QString dataDirectory();
 QString cacheDirectory();
+QString glyphsUrl();
 }

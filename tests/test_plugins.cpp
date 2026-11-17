@@ -5,6 +5,10 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <cstdio>
 static void check(bool condition, const char *message) {
     if (!condition) { fprintf(stderr, "FAIL: %s\n", message); std::exit(1); }
@@ -41,6 +45,18 @@ int main(int argc, char **argv) {
     check(!vector.contains("error") && vector.value("capabilities").toMap().value("search").toBool(), "vector style resource and capabilities");
     check(QFileInfo::exists(style), "retired style survives while renderer exists");
     renderer.reset(); check(!QFileInfo::exists(style), "retired style is removed on renderer teardown");
+    {
+        auto db = QSqlDatabase::addDatabase("QSQLITE"); db.setDatabaseName(path); db.open(); QSqlQuery q(db);
+        check(q.exec("UPDATE metadata SET value='{\"vector_layers\":[{\"id\":\"building\"}]}' WHERE name='json'"), "building-only metadata");
+        check(q.exec("INSERT INTO metadata VALUES('vectorune:style','dark')"), "style preset metadata");
+    }
+    QSqlDatabase::removeDatabase(QSqlDatabase::defaultConnection);
+    const auto buildings = document.prepare(QUrl::fromLocalFile(path));
+    check(!buildings.contains("error"), "selected-layer export opens without transportation");
+    QFile styled(QUrl(buildings.value("styleUrl").toString()).toLocalFile());
+    check(styled.open(QIODevice::ReadOnly), "converted style opens");
+    const auto background = QJsonDocument::fromJson(styled.readAll()).object()["layers"].toArray()[0].toObject()["paint"].toObject()["background-color"].toString();
+    check(background == "#202630", "saved dark preset is applied when reopening MBTiles");
     check(document.prepare(QUrl::fromLocalFile(temporary.filePath("unknown.xyz"))).contains("error"), "unregistered format reports error");
     puts("PASS: compiled plugins, raster/vector capabilities, metadata, embedded style, renderer lifetime");
 }

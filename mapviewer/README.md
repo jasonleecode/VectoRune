@@ -30,6 +30,39 @@ machines, set `QMapLibre_DIR` to a compatible QMapLibre installation. CMake copi
 its geoservices plugin into the app bundle; the app still depends on the installed
 Qt and QMapLibre frameworks (this is a development build, not a standalone bundle).
 
+## Linux OpenGL rendering
+
+The local QMapLibre 4.0.0 checkout at commit
+`b58dfacf7548b0b5ec8a815028cab54d7951039f` needs
+[`maplibre-opengl-state.patch`](../patches/maplibre-opengl-state.patch).
+Its OpenGL framebuffer binding code clears color/depth/stencil outside the
+renderer state cache and assumes a viewport that was never applied. On the
+tested NVIDIA desktop this causes black backgrounds while panning and tilting.
+The patch leaves clearing to MapLibre's render passes and synchronizes the
+viewport/scissor state with the shared Qt Quick context. It does not change the
+Metal backend or disable threaded rendering.
+
+Apply once to that dependency checkout, then rebuild and install QMapLibre:
+
+```sh
+git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-state.patch"
+cmake --build build/deps/maplibre-build --parallel 8
+cmake --install build/deps/maplibre-build
+```
+
+These build paths refer to the local Linux dependency build. Stop the viewer
+before replacing its shared libraries. Do not apply this version-specific patch
+blindly to other QMapLibre revisions.
+
+The `MapRendering::test_panKeepsBackground` GUI regression captures the actual
+window while panning and changing tilt, and checks a solid local background for
+corrupted pixels. Run it with the same Qt/MapLibre library and plugin paths as
+the viewer, with `QSG_RHI_BACKEND=opengl`:
+
+```sh
+build/tests/mapviewer_interaction_tests -input tests/ui/tst_rendering.qml
+```
+
 ## Linux label stability
 
 The local QMapLibre 4.0.0 checkout at commit
@@ -90,6 +123,14 @@ QT_SCALE_FACTOR=1.5 build/tests/mapviewer_interaction_tests -input tests/ui/tst_
 
 ## Linux panning performance
 
+Also apply [`maplibre-opengl-ubo-occupancy.patch`](../patches/maplibre-opengl-ubo-occupancy.patch)
+after the streaming patch below. The allocator must count the alignment padding
+reserved for each uniform block when deciding whether a page is fragmented.
+Counting only payload bytes misclassifies pages filled with small blocks, causing
+repeated relocation within the same compaction pass and a growing buffer pool.
+This is particularly visible with the many text labels in OpenMapTiles MBTiles.
+The fix counts the same aligned size on allocation and release.
+
 After the label-synchronization patch above, apply
 [`maplibre-opengl-ubo-streaming.patch`](../patches/maplibre-opengl-ubo-streaming.patch)
 to the same dependency revision. Synchronously mapping every small uniform
@@ -105,6 +146,7 @@ Stop the viewer before installing the rebuilt libraries:
 
 ```sh
 git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-ubo-streaming.patch"
+git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-ubo-occupancy.patch"
 cmake --build build/deps/maplibre-build --parallel 8
 cmake --install build/deps/maplibre-build
 ```
@@ -122,6 +164,18 @@ QT_LOGGING_RULES='maplibre.debug.debug=false' \
 build/tests/mapviewer_interaction_tests -input tests/benchmarks/tst_pan.qml
 ```
 
+For a repeatable mouse-drag test on a denser view, additionally set
+`VECTORUNE_BENCH_OPTIONS='{"zoom":13,"width":1600,"height":1000,"drag":true}'`.
+Optional `warmupMs` and `measureMs` extend each case for sustained-panning tests.
+
+With the occupancy fix, the local Beijing MBTiles at zoom 13 on an RTX 3080
+improved from 49.9 to 60.2 FPS at 1600×1000 and from 31.4 to 43.6 FPS at
+3368×1376. Maximized p95 frame time fell from 72.6 to 33.6 ms. The final
+mouse-drag run used 10 seconds of warmup and 20 seconds of measurement per size.
+Profiling before/after showed the buffer pool growing to thousands of pages
+before the fix, then stabilizing at roughly 245 pages for this trajectory.
+These measurements retain the same map detail and labels.
+
 On the local NVIDIA RTX 3080, the Beijing Garmin fixture at 3368×1376 improved
 from 15.7 to 39.7 mean FPS, with the 95th-percentile frame interval decreasing
 from 186 to 50 ms. The comparison uses the label/resize fixes in both builds;
@@ -129,6 +183,32 @@ the 1080×640 case remained around 62 FPS. These are local measurements rather
 than portable test thresholds.
 
 ## Map data and style
+
+### Chinese input on Linux
+
+The Qt SDK used to build the viewer must have an input-context plugin compatible
+with the desktop input method. The standalone Qt 6 SDK does not necessarily ship
+Fcitx support, and a distribution's Qt 5 plugin cannot serve a Qt 6 application.
+For Fcitx or Sogou running on Fcitx, build the pinned official Fcitx Qt 6 plugin
+with the same SDK (it supports both Fcitx 4 and 5):
+
+```sh
+# Build dependencies: git, CMake, extra-cmake-modules, libxkbcommon-dev,
+# libxcb1-dev, libx11-dev and the Qt SDK's Core/Gui/Widgets/DBus development files.
+bash tools/build-fcitx-plugin.sh /path/to/Qt/6.5.3/gcc_64
+cmake -S . -B build \
+  -DVECTORUNE_QT_INPUTCONTEXT_PLUGIN="$PWD/build/deps/fcitx5-qt-build/qt6/platforminputcontext/libfcitx5platforminputcontextplugin.so"
+cmake --build build --parallel 4
+QT_IM_MODULE=fcitx build/mapviewer/qml_location_mapviewer
+```
+
+Set `ECM_DIR` when extra-cmake-modules is unpacked outside the system prefix.
+The build copies the plugin beside the viewer and the UI test executable;
+installation includes it under `bin/platforminputcontexts`. Qt discovers this
+directory automatically. The search-box regression test exercises preedit and
+Chinese commit events before submitting the exact Chinese search text.
+
+### Search and location
 
 The upper-right toolbar provides place search, a rotating compass (click to
 restore north-up), and recentering. Recenter requests the operating system's

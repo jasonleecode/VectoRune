@@ -10,7 +10,13 @@ find_package(QMapLibre REQUIRED COMPONENTS Location)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_add_executable(qml_location_mapviewer WIN32 MACOSX_BUNDLE
     main.cpp
+    locationpermissionfallback.h
 )
+vectorune_deploy_inputcontext(qml_location_mapviewer)
+if(VECTORUNE_QT_INPUTCONTEXT_PLUGIN)
+    install(FILES "${VECTORUNE_QT_INPUTCONTEXT_PLUGIN}"
+        DESTINATION "${CMAKE_INSTALL_BINDIR}/platforminputcontexts")
+endif()
 foreach(helper IN LISTS VECTORUNE_HELPERS)
     add_dependencies(qml_location_mapviewer ${helper})
     set_property(TARGET qml_location_mapviewer APPEND PROPERTY LINK_DEPENDS $<TARGET_FILE:${helper}>)
@@ -18,10 +24,20 @@ foreach(helper IN LISTS VECTORUNE_HELPERS)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${helper}>
             $<TARGET_FILE_DIR:qml_location_mapviewer>/${helper})
 endforeach()
+if(VECTORUNE_WITH_TILEMAKER)
+    set(conversion_font "${PROJECT_SOURCE_DIR}/tools/tilemaker/server/static/fonts/KlokanTech Noto Sans CJK Regular")
+    add_custom_command(TARGET qml_location_mapviewer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${conversion_font}"
+            "$<TARGET_FILE_DIR:qml_location_mapviewer>/fonts/KlokanTech Noto Sans CJK Regular")
+    install(DIRECTORY "${conversion_font}" DESTINATION "${CMAKE_INSTALL_DATADIR}/vectorune/fonts")
+    install(FILES "${PROJECT_SOURCE_DIR}/tools/tilemaker/server/static/fonts/README.md"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/vectorune/fonts")
+endif()
 
 target_link_libraries(qml_location_mapviewer PUBLIC
     QMapLibre::Location
     vectorune_plugins
+    vectorune_conversion
     Qt6::Sql
     Qt6::QuickDialogs2
     Qt::Core
@@ -64,6 +80,7 @@ qt_add_qml_module(qml_location_mapviewer
         "Main.qml"
         "map/NavigationController.qml"
         "NavigationPanel.qml"
+        "ConversionDialog.qml"
         "map/MapTools.qml"
         "menus/ItemPopupMenu.qml"
         "menus/MainMenu.qml"

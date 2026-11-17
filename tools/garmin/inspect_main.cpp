@@ -76,8 +76,8 @@ int main(int argc, char **argv)
         for (int n = 1; n < sub->czips && zips.size() < 10; ++n)
             if (sub->zips[n]) zips.append(decode(sub->zips[n]->code, header.codepage));
         submaps.append(QJsonObject{{"mapId", QString::fromLatin1(sub->mapid)},
-            {"codepage", header.codepage}, {"libraryEncoding", sub->lbl->codepage},
-            {"labelCoding", header.coding}, {"net", bool(sub->have_net)}, {"nod", bool(sub->have_nod)},
+            {"codepage", int(header.codepage)}, {"libraryEncoding", sub->lbl->codepage},
+            {"labelCoding", int(header.coding)}, {"net", bool(sub->have_net)}, {"nod", bool(sub->have_nod)},
             {"countries", sub->lbl_countries}, {"regions", sub->lbl_regions},
             {"cities", sub->lbl_cities}, {"zips", sub->lbl_zips},
             {"countrySamples", countries}, {"regionSamples", regions},

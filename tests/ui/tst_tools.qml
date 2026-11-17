@@ -25,6 +25,7 @@ Item {
     }
     TestCase {
         name: "MapTools"
+        when: windowShown
         property var tools
         function init() {
             const component = Qt.createComponent(Qt.resolvedUrl("../../mapviewer/map/MapTools.qml"))
@@ -74,6 +75,22 @@ Item {
             compare(tools.results.length, 1)
             tools.resetSearch()
             compare(tools.results.length, 0)
+        }
+        function test_chineseComposition() {
+            tools.searchOpen = true
+            const query = findChild(tools, "placeQuery")
+            query.forceActiveFocus()
+            tryCompare(query, "activeFocus", true)
+            backend.requested = ""
+            input.sendInputMethod(query, "tian'an'men", "")
+            compare(query.text, "")
+            verify(query.inputMethodComposing)
+            compare(backend.requested, "")
+            input.sendInputMethod(query, "", "天安门")
+            compare(query.text, "天安门")
+            verify(!query.inputMethodComposing)
+            keyClick(Qt.Key_Return)
+            compare(backend.requested, "天安门")
         }
     }
 }

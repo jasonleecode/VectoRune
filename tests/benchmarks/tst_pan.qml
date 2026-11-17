@@ -9,6 +9,7 @@ Item {
     id: root
     width: 1080
     height: 640
+    property var options: input.benchmarkOptions()
     InteractiveMapView {
         id: viewer
         anchors.fill: parent
@@ -27,11 +28,13 @@ Item {
             // Follow the same trajectory even if the renderer drops frames.
             const phase = (Date.now() - started) % 1920
             const offset = (phase < 960 ? phase : 1920 - phase) / 4
-            viewer.map.pan(offset - lastOffset, 0)
+            if (root.options.drag) benchmark.mouseMove(viewer, 300 + offset, 300, 0)
+            else viewer.map.pan(offset - lastOffset, 0)
             lastOffset = offset
         }
     }
     TestCase {
+        id: benchmark
         name: "MapPanBenchmark"
         when: windowShown
         function test_pan_data() {
@@ -47,21 +50,23 @@ Item {
                 tryCompare(window, "visibility", Window.Maximized)
             } else {
                 window.showNormal()
-                window.width = 1080
-                window.height = 640
+                window.width = root.options.width || 1080
+                window.height = root.options.height || 640
             }
             tryVerify(function() { return viewer.map.mapReady })
             viewer.map.activeMapType = viewer.map.supportedMapTypes[0]
             viewer.map.center = QtPositioning.coordinate(39.9042, 116.4074)
-            viewer.map.zoomLevel = 15
+            viewer.map.zoomLevel = root.options.zoom || 15
+            if (root.options.drag) mousePress(viewer, 300, 300)
             pan.started = Date.now()
             pan.lastOffset = 0
             pan.start()
-            wait(5000)
+            wait(root.options.warmupMs || 5000)
             input.startFrameTiming(viewer)
-            wait(5000)
+            wait(root.options.measureMs || 5000)
             const timing = input.finishFrameTiming()
             pan.stop()
+            if (root.options.drag) mouseRelease(viewer, 300 + pan.lastOffset, 300)
             verify(timing.frames > 0)
             console.log("PAN_BENCHMARK", data.tag, viewer.width, viewer.height, JSON.stringify(timing))
         }

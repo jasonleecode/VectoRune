@@ -19,6 +19,19 @@ MenuBar {
     signal selectTool(string tool);
     signal toggleMapState(string state)
 
+    Menu {
+        title: qsTr("地图")
+        MenuItem {
+            text: qsTr("打开地图…")
+            onTriggered: selectTool("OpenMap")
+        }
+        MenuItem {
+            objectName: "convertMapMenuItem"
+            text: qsTr("转换 OSM 地图…")
+            onTriggered: selectTool("ConvertMap")
+        }
+    }
+
     function clearMenu(menu)
     {
         while (menu.count)

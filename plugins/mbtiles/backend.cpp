@@ -1,5 +1,6 @@
 #include "backend.h"
 #include "runtimepaths.h"
+#include "stylepalette.h"
 
 #include <QDir>
 #include <QFile>
@@ -92,14 +93,18 @@ QVariantMap MbtilesBackend::prepare(const QUrl &url)
         const auto layers = QJsonDocument::fromJson(metadata.value("json").toString().toUtf8())
                                 .object().value("vector_layers").toArray();
         bool compatible = false;
+        const QStringList knownLayers{"transportation", "transportation_name", "building", "housenumber",
+            "water", "waterway", "water_name", "landuse", "landcover", "park", "mountain_peak",
+            "poi", "place", "boundary", "aeroway", "aerodrome_label"};
         for (const auto &layer : layers)
-            compatible |= layer.toObject().value("id").toString() == "transportation";
+            compatible |= knownLayers.contains(layer.toObject().value("id").toString());
         if (!compatible)
             return fail(tr("此矢量地图与当前样式不兼容，需要 OpenMapTiles 图层结构。"));
         QFile styleTemplate(":/offline/resources/beijing-style.json");
         if (!styleTemplate.open(QIODevice::ReadOnly))
             return fail(tr("无法读取地图样式。"));
         style = QJsonDocument::fromJson(styleTemplate.readAll()).object();
+        style = applyStylePalette(style, metadata.value("vectorune:style").toString());
         auto sources = style.value("sources").toObject();
         auto source = sources.value("beijing").toObject();
         source.insert("url", tileUrl);

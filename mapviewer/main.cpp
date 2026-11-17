@@ -5,6 +5,8 @@
 #include "builtin.h"
 #include "runtimepaths.h"
 #include "gpxtrack.h"
+#include "mapconverter.h"
+#include "locationpermissionfallback.h"
 
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQml/QQmlContext>
@@ -110,8 +112,13 @@ int main(int argc, char *argv[])
     qInfo() << "MapLibre offline map:" << mbtilesPath;
 
     GpxTrack gpxTrack;
+    MapConverter mapConverter;
+#if !QT_CONFIG(permissions)
+    qmlRegisterType<LocationPermissionFallback>("MapViewer", 1, 0, "LocationPermission");
+#endif
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("gpxTrack", &gpxTrack);
+    engine.rootContext()->setContextProperty("mapConverter", &mapConverter);
     engine.rootContext()->setContextProperty("initialTrackFolder", QUrl::fromLocalFile(
         QDir(RuntimePaths::dataDirectory()).filePath("gpx")));
     engine.rootContext()->setContextProperty("mapDocument", &mapDocument);
