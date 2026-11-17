@@ -1,0 +1,71 @@
+{
+  "version": 8,
+  "sources": {
+    "labels": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                116.4074,
+                39.9042
+              ]
+            },
+            "properties": {
+              "name": "Beijing Test Label"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f3f0e8"
+      }
+    },
+    {
+      "id": "anchor",
+      "type": "circle",
+      "source": "labels",
+      "paint": {
+        "circle-radius": 3,
+        "circle-color": "#ff0000",
+        "circle-translate": [
+          0,
+          25
+        ],
+        "circle-translate-anchor": "viewport",
+        "circle-pitch-alignment": "viewport",
+        "circle-pitch-scale": "viewport"
+      }
+    },
+    {
+      "id": "label",
+      "type": "symbol",
+      "source": "labels",
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 20
+      },
+      "paint": {
+        "text-color": "#202020",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+--- a/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
++++ b/vendor/maplibre-native/src/mbgl/gl/buffer_allocator.cpp
+@@ -267,7 +267,7 @@
+             glMapBufferRange(type,
+                              buffer->pointer,
+                              alignedSize,
+-                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_WRITE_BIT));
++                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT));
+         const auto writtenIndex = buffer->pointer;
+
+         if (buf) {
+@@ -440,7 +440,7 @@
+             glMapBufferRange(type,
+                              recycledWriteIndex,
+                              alignedSize,
+-                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_WRITE_BIT));
++                             GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT));
+
+         if (buf) {
+             std::memcpy(buf, ref.getOwner()->getManagedBuffer().getContents().data(), ref.getOwner()->getSize());

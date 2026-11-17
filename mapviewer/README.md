@@ -30,6 +30,37 @@ machines, set `QMapLibre_DIR` to a compatible QMapLibre installation. CMake copi
 its geoservices plugin into the app bundle; the app still depends on the installed
 Qt and QMapLibre frameworks (this is a development build, not a standalone bundle).
 
+## Linux label stability
+
+The local QMapLibre 4.0.0 checkout at commit
+`b58dfacf7548b0b5ec8a815028cab54d7951039f` needs
+[`maplibre-opengl-labels.patch`](../patches/maplibre-opengl-labels.patch).
+Its UBO allocator maps recycled storage with `GL_MAP_UNSYNCHRONIZED_BIT`.
+On the tested NVIDIA desktop, repeated pans corrupt label glyphs and positions;
+an isolated local label reproduces the failure without map tile downloads.
+The patch lets OpenGL synchronize both ordinary writes and compaction writes,
+while retaining buffer pooling, compaction and fence-based reclamation. These
+maps may wait for GPU work; the Metal backend is unaffected.
+
+Apply once from the dependency checkout root, then rebuild and install
+(stop the viewer before installation). These paths refer to the local Linux
+dependency build; do not apply this patch blindly to other revisions:
+
+```sh
+git -C ../maplibre-native-qt apply "$PWD/patches/maplibre-opengl-labels.patch"
+cmake --build build/deps/maplibre-build --parallel 8
+cmake --install build/deps/maplibre-build
+```
+
+`tests/ui/tst_labels.qml` checks label pixels and their position relative to a
+fixed geographic anchor through 600 horizontal pan frames and 120 frames with
+rotation and tilt. It uses the bundled offline glyphs. Run with the viewer's
+Qt/MapLibre library and plugin paths and `QSG_RHI_BACKEND=opengl`:
+
+```sh
+build/tests/mapviewer_interaction_tests -input tests/ui/tst_labels.qml
+```
+
 ## Map data and style
 
 The upper-right toolbar provides place search, a rotating compass (click to
