@@ -21,6 +21,15 @@ function(vectorune_deploy_inputcontext target)
                 "$<TARGET_FILE_DIR:${target}>/platforminputcontexts/")
     endif()
 endfunction()
+function(vectorune_deploy_maplibre_qml target)
+    get_target_property(plugin_type QMapLibre::PluginQmlLocation TYPE)
+    if(NOT plugin_type STREQUAL "STATIC_LIBRARY")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "$<TARGET_FILE_DIR:QMapLibre::PluginQmlLocation>"
+                "$<TARGET_FILE_DIR:${target}>/MapLibre/Location")
+    endif()
+endfunction()
 option(MAPVIEWER_BUILD_TESTS "Compatibility alias for BUILD_TESTING" OFF)
 option(BUILD_TESTING "Build regression tests" ${MAPVIEWER_BUILD_TESTS})
 if(BUILD_TESTING)

@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 
 Menu {
+    id: menu
     property variant coordinate
     property int markersCount
     property int mapItemsCount
@@ -29,17 +30,20 @@ Menu {
     MenuSeparator {}
     MenuItem {
         text: qsTr("设为路线起点")
-        enabled: routingAvailable
+        enabled: menu.routingAvailable
+        opacity: enabled ? 1 : 0.4
         onTriggered: itemClicked("routeStart")
     }
     MenuItem {
         text: qsTr("设为路线终点")
-        enabled: routingAvailable
+        enabled: menu.routingAvailable
+        opacity: enabled ? 1 : 0.4
         onTriggered: itemClicked("routeFinish")
     }
     MenuItem {
         text: qsTr("规划路线")
-        enabled: routingAvailable
+        enabled: menu.routingAvailable
+        opacity: enabled ? 1 : 0.4
         onTriggered: itemClicked("planRoute")
     }
 

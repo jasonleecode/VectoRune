@@ -2,6 +2,7 @@ import QtQuick
 import QtLocation
 import QtPositioning
 import Qt.labs.animation
+import MapLibre.Location as ML
 
 // Keep every zoom gesture in map-local logical pixels. In particular, never
 // align an invalid coordinate or let a wheel event overshoot the zoom limits.
@@ -10,6 +11,39 @@ Item {
     property alias map: map
     readonly property real minimumZoomLevel: map.minimumZoomLevel
     readonly property real maximumZoomLevel: map.maximumZoomLevel
+    property bool buildings3dAvailable: false
+    property bool buildings3dEnabled: false
+    property var buildingParameter: null
+    property bool styleReady: false
+
+    function syncBuildings() {
+        if (!styleReady) return
+        if (buildings3dAvailable && !buildingParameter) {
+            buildingParameter = buildingLayer.createObject(buildingStyle)
+            buildingStyle.addParameter(buildingParameter)
+        }
+        if (!buildings3dAvailable) buildings3dEnabled = false
+    }
+    onBuildings3dAvailableChanged: syncBuildings()
+    onBuildings3dEnabledChanged: {
+        if (buildings3dEnabled && !buildings3dAvailable) {
+            buildings3dEnabled = false
+            return
+        }
+        if (buildings3dEnabled) {
+            map.zoomLevel = Math.min(maximumZoomLevel, Math.max(map.zoomLevel, 16))
+            map.tilt = Math.min(map.maximumTilt, 55)
+        } else map.tilt = 0
+    }
+    Component.onCompleted: { styleReady = true; syncBuildings() }
+    Component {
+        id: buildingLayer
+        ML.LayerParameter {
+            styleId: "buildings-3d"
+            type: "fill-extrusion"
+            layout: ({"visibility": root.buildings3dEnabled && root.buildings3dAvailable ? "visible" : "none"})
+        }
+    }
 
     function zoomAt(point, requestedZoom) {
         if (!map.mapReady || !isFinite(requestedZoom))
@@ -27,6 +61,7 @@ Item {
     Map {
         id: map
         anchors.fill: parent
+        ML.MapLibre.style: ML.Style { id: buildingStyle }
 
         WheelHandler {
             target: null

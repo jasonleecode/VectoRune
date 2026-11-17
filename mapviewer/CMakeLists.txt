@@ -13,6 +13,12 @@ qt_add_executable(qml_location_mapviewer WIN32 MACOSX_BUNDLE
     locationpermissionfallback.h
 )
 vectorune_deploy_inputcontext(qml_location_mapviewer)
+vectorune_deploy_maplibre_qml(qml_location_mapviewer)
+get_target_property(maplibre_qml_type QMapLibre::PluginQmlLocation TYPE)
+if(NOT APPLE AND NOT maplibre_qml_type STREQUAL "STATIC_LIBRARY")
+    install(DIRECTORY "$<TARGET_FILE_DIR:QMapLibre::PluginQmlLocation>/"
+        DESTINATION "${CMAKE_INSTALL_BINDIR}/MapLibre/Location")
+endif()
 if(VECTORUNE_QT_INPUTCONTEXT_PLUGIN)
     install(FILES "${VECTORUNE_QT_INPUTCONTEXT_PLUGIN}"
         DESTINATION "${CMAKE_INSTALL_BINDIR}/platforminputcontexts")

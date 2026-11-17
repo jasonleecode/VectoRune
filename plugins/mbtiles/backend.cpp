@@ -89,6 +89,7 @@ QVariantMap MbtilesBackend::prepare(const QUrl &url)
     const auto tileUrl = "mbtiles://" + QString::fromLatin1(
         QUrl::toPercentEncoding(file.canonicalFilePath(), "/"));
     QJsonObject style;
+    bool buildings3d = false;
     if (format == "pbf") {
         const auto layers = QJsonDocument::fromJson(metadata.value("json").toString().toUtf8())
                                 .object().value("vector_layers").toArray();
@@ -96,8 +97,11 @@ QVariantMap MbtilesBackend::prepare(const QUrl &url)
         const QStringList knownLayers{"transportation", "transportation_name", "building", "housenumber",
             "water", "waterway", "water_name", "landuse", "landcover", "park", "mountain_peak",
             "poi", "place", "boundary", "aeroway", "aerodrome_label"};
-        for (const auto &layer : layers)
+        for (const auto &layer : layers) {
             compatible |= knownLayers.contains(layer.toObject().value("id").toString());
+            if (layer.toObject().value("id") == "building")
+                buildings3d = layer.toObject().value("fields").toObject().contains("render_height");
+        }
         if (!compatible)
             return fail(tr("此矢量地图与当前样式不兼容，需要 OpenMapTiles 图层结构。"));
         QFile styleTemplate(":/offline/resources/beijing-style.json");
@@ -154,7 +158,8 @@ QVariantMap MbtilesBackend::prepare(const QUrl &url)
     searchMapFile = format == "pbf" ? file.canonicalFilePath() : QString();
     ++searchGeneration;
     return {{"capabilities", QVariantMap{{"tiles", true}, {"geometry", false}, {"search", format == "pbf"},
-                {"nearby", false}, {"routing", false}, {"conditionalRouting", false}}}, {"styleUrl", styleUrl}, {"name", file.completeBaseName()},
+                {"nearby", false}, {"routing", false}, {"conditionalRouting", false},
+                {"buildings3d", buildings3d}}}, {"styleUrl", styleUrl}, {"name", file.completeBaseName()},
             {"attribution", metadata.value("attribution", "© OpenStreetMap contributors")},
             {"folder", QUrl::fromLocalFile(file.absolutePath())},
             {"latitude", latitude}, {"longitude", longitude}, {"zoom", zoom}};

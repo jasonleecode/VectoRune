@@ -1,0 +1,121 @@
+{
+  "version": 8,
+  "name": "Beijing Offline",
+  "sources": {
+    "beijing": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "render_height": 160,
+              "render_min_height": 0
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    116.40723,
+                    39.90408
+                  ],
+                  [
+                    116.40757,
+                    39.90408
+                  ],
+                  [
+                    116.40757,
+                    39.90432
+                  ],
+                  [
+                    116.40723,
+                    39.90432
+                  ],
+                  [
+                    116.40723,
+                    39.90408
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#ffffff"
+      }
+    },
+    {
+      "id": "buildings-3d",
+      "type": "fill-extrusion",
+      "source": "beijing",
+      "minzoom": 13,
+      "filter": [
+        ">",
+        [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ]
+        ],
+        [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_min_height"
+            ],
+            0
+          ]
+        ]
+      ],
+      "layout": {
+        "visibility": "none"
+      },
+      "paint": {
+        "fill-extrusion-color": "#d02020",
+        "fill-extrusion-height": [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ]
+        ],
+        "fill-extrusion-base": [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_min_height"
+            ],
+            0
+          ]
+        ],
+        "fill-extrusion-opacity": 1
+      }
+    }
+  ]
+}

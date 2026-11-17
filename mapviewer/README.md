@@ -210,6 +210,22 @@ Chinese commit events before submitting the exact Chinese search text.
 
 ### Search and location
 
+The upper-right **3D** button toggles building extrusion for OpenMapTiles MBTiles
+whose building layer declares `render_height`. It is disabled for maps without
+that field and while loading a map. Enabling 3D tilts the camera to 55 degrees
+and raises zoom to at least 16; disabling it restores a top-down view while
+preserving the current location and zoom. A newly loaded map starts in 2D.
+The extrusion uses `render_height` and `render_min_height` in meters and follows
+the saved color palette. Features with missing or nonpositive height, or with
+their top at/below their base, remain flat. Heights generated from floor counts
+or defaults remain estimates; the current tilemaker profile uses 3.66 meters
+per floor and a 3.66-meter fallback when height and floors are both missing.
+
+The MapLibre Location QML plugin is copied beside the executable so that live
+layer visibility changes do not require reloading the map or an environment
+variable for locating the plugin. `tst_buildings.qml` checks actual rendered
+walls, repeated toggling, camera behavior, and disabling on a map change.
+
 The upper-right toolbar provides place search, a rotating compass (click to
 restore north-up), and recentering. Recenter requests the operating system's
 current position (macOS Core Location, including Wi-Fi positioning, without

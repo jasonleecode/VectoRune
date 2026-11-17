@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     check(!raster.contains("error"), "raster adapter prepares");
     const auto capabilities = raster.value("capabilities").toMap();
     check(capabilities.value("tiles").toBool() && !capabilities.value("search").toBool()
-          && !capabilities.value("routing").toBool(), "raster capabilities are accurate");
+          && !capabilities.value("routing").toBool() && !capabilities.value("buildings3d").toBool(), "raster capabilities are accurate");
     check(raster.value("latitude").toDouble() == 34 && raster.value("longitude").toDouble() == 12, "map center metadata");
     const auto style = QUrl(raster.value("styleUrl").toString()).toLocalFile();
     auto renderer = std::make_unique<QObject>(); document.retainForRenderer(renderer.get());
@@ -53,10 +53,29 @@ int main(int argc, char **argv) {
     QSqlDatabase::removeDatabase(QSqlDatabase::defaultConnection);
     const auto buildings = document.prepare(QUrl::fromLocalFile(path));
     check(!buildings.contains("error"), "selected-layer export opens without transportation");
+    check(!buildings.value("capabilities").toMap().value("buildings3d").toBool(), "buildings without height do not advertise 3D");
     QFile styled(QUrl(buildings.value("styleUrl").toString()).toLocalFile());
     check(styled.open(QIODevice::ReadOnly), "converted style opens");
     const auto background = QJsonDocument::fromJson(styled.readAll()).object()["layers"].toArray()[0].toObject()["paint"].toObject()["background-color"].toString();
     check(background == "#202630", "saved dark preset is applied when reopening MBTiles");
+    {
+        auto db = QSqlDatabase::addDatabase("QSQLITE"); db.setDatabaseName(path); db.open(); QSqlQuery q(db);
+        check(q.exec("UPDATE metadata SET value='{\"vector_layers\":[{\"id\":\"building\",\"fields\":{\"render_height\":\"Number\"}}]}' WHERE name='json'"), "building heights metadata");
+    }
+    QSqlDatabase::removeDatabase(QSqlDatabase::defaultConnection);
+    const auto tallBuildings = document.prepare(QUrl::fromLocalFile(path));
+    check(tallBuildings.value("capabilities").toMap().value("buildings3d").toBool(), "building heights enable 3D");
+    QFile extruded(QUrl(tallBuildings.value("styleUrl").toString()).toLocalFile());
+    check(extruded.open(QIODevice::ReadOnly), "3D style opens");
+    bool extrusionFound = false;
+    for (const auto &layer : QJsonDocument::fromJson(extruded.readAll()).object()["layers"].toArray()) {
+        const auto object = layer.toObject();
+        if (object["id"] != "buildings-3d") continue;
+        extrusionFound = true;
+        check(object["type"] == "fill-extrusion" && object["layout"].toObject()["visibility"] == "none", "3D starts hidden");
+        check(object["paint"].toObject()["fill-extrusion-color"] == "#535a65", "3D follows the saved palette");
+    }
+    check(extrusionFound, "3D building layer is included");
     check(document.prepare(QUrl::fromLocalFile(temporary.filePath("unknown.xyz"))).contains("error"), "unregistered format reports error");
     puts("PASS: compiled plugins, raster/vector capabilities, metadata, embedded style, renderer lifetime");
 }

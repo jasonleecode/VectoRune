@@ -9,6 +9,7 @@ Item {
     required property var backend
     property var mapCenter: QtPositioning.coordinate()
     property bool searchAvailable: true
+    property bool mapLoading: false
     property bool searchOpen: false
     property bool searching: false
     property var results: []
@@ -18,7 +19,7 @@ Item {
     signal placeSelected(var coordinate, string name)
     signal locationRequested()
     width: searchOpen ? Math.min(390, parent.width - 24) : 44
-    height: searchOpen ? Math.min(470, parent.height - 24) : 148
+    height: searchOpen ? Math.min(470, parent.height - 24) : 200
 
     function resetSearch() {
         locating = false
@@ -80,7 +81,7 @@ Item {
     Timer { id: noticeTimer; interval: 4500; onTriggered: tools.locationNotice = "" }
     Label {
         anchors.right: parent.right
-        y: 158
+        y: 210
         visible: tools.locationNotice.length > 0
         text: tools.locationNotice
         width: Math.min(260, tools.parent.width - 24)
@@ -131,6 +132,35 @@ Item {
                     }
                 }
             }
+        }
+        Button {
+            id: threeDButton
+            objectName: "mapToolThreeD"
+            width: 44; height: 44
+            text: "3D"
+            checkable: true
+            checked: !!tools.mapView && !!tools.mapView.buildings3dEnabled
+            enabled: !tools.mapLoading && !!tools.mapView && !!tools.mapView.buildings3dAvailable
+            Accessible.name: checked ? "关闭立体建筑" : "显示立体建筑"
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: !tools.mapView || !tools.mapView.buildings3dAvailable
+                          ? "当前地图没有可用的建筑高度数据"
+                          : checked ? "切回二维地图" : "按建筑高度显示立体地图"
+            background: Rectangle {
+                color: threeDButton.checked ? "#dceaff" : threeDButton.hovered ? "#eef5ff" : "#fafcffff"
+                border.color: threeDButton.checked ? "#2479ef" : "#cbd3dd"
+                radius: 8
+            }
+            contentItem: Label {
+                text: threeDButton.text
+                font.bold: true
+                font.pixelSize: 15
+                color: !threeDButton.enabled ? "#a0a7b0" : threeDButton.checked ? "#1765ca" : "#344a60"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: tools.mapView.buildings3dEnabled = !tools.mapView.buildings3dEnabled
         }
     }
     Frame {

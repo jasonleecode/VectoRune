@@ -27,6 +27,7 @@ ApplicationWindow {
         mapView: appWindow.mapview
         backend: mapDocument
         searchAvailable: !!appWindow.mapCapabilities.search
+        mapLoading: appWindow.mapLoading
         mapCenter: appWindow.currentMapCenter
         anchors.top: parent.top
         anchors.right: parent.right
@@ -115,6 +116,7 @@ ApplicationWindow {
                        ? result.styleUrl : parameters[i].value
             }))
         parameters = nextParameters
+        mapCapabilities = result.capabilities || ({})
         mainMenu.selectProvider("maplibre")
         Qt.callLater(function() {
             for (let i = 0; i < previousParameters.length; ++i)
@@ -124,7 +126,6 @@ ApplicationWindow {
         mapview.map.zoomLevel = result.zoom
         mapview.map.bearing = 0
         mapview.map.tilt = 0
-        mapCapabilities = result.capabilities || ({})
         currentMapName = result.name
         currentMapAttribution = result.attribution
         currentMapCenter = QtPositioning.coordinate(result.latitude, result.longitude)
@@ -407,7 +408,7 @@ ApplicationWindow {
 
     MapPopupMenu {
         id: mapPopupMenu
-        routingAvailable: navigation.available
+        routingAvailable: !appWindow.mapLoading && !!appWindow.mapCapabilities.routing && navigation.available
         nearbyAvailable: !!appWindow.mapCapabilities.nearby
 
         function show(coordinate)
@@ -619,6 +620,7 @@ support"
         id: mapComponent
 
         MapComponent {
+            buildings3dAvailable: !!appWindow.mapCapabilities.buildings3d
             locationEnabled: permission.status === Qt.Granted
             searchCoordinate: appWindow.searchCoordinate
             mapAttribution: appWindow.currentMapAttribution

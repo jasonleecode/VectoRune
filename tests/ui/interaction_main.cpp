@@ -113,6 +113,24 @@ public slots:
         event.setCommitString(commit);
         QCoreApplication::sendEvent(item, &event);
     }
+    QVariantMap buildingPixels(QQuickItem *item) {
+        const auto image = item->window()->grabWindow();
+        const auto origin = item->mapToScene(QPointF(0, 0));
+        const auto ratio = image.devicePixelRatio();
+        const QRect area = QRectF((origin + QPointF(60, 40)) * ratio,
+                                  QSizeF(item->width() - 140, item->height() - 80) * ratio).toRect().intersected(image.rect());
+        QRect bounds;
+        int count = 0;
+        for (int y = area.top(); y <= area.bottom(); ++y)
+            for (int x = area.left(); x <= area.right(); ++x) {
+                const auto color = image.pixelColor(x, y);
+                if (color.red() > 80 && color.red() > color.green() * 1.5 && color.red() > color.blue() * 1.5) {
+                    ++count;
+                    bounds = bounds.united(QRect(x, y, 1, 1));
+                }
+            }
+        return {{"count", count}, {"width", bounds.width()}, {"height", bounds.height()}};
+    }
     QStringList backgroundSamples(QQuickItem *item) {
         const auto image = item->window()->grabWindow();
         QStringList colors;

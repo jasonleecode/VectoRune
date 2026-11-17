@@ -242,6 +242,71 @@
       }
     },
     {
+      "id": "buildings-3d",
+      "type": "fill-extrusion",
+      "source": "beijing",
+      "source-layer": "building",
+      "minzoom": 13,
+      "filter": [
+        ">",
+        [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ]
+        ],
+        [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_min_height"
+            ],
+            0
+          ]
+        ]
+      ],
+      "layout": {
+        "visibility": "none"
+      },
+      "paint": {
+        "fill-extrusion-color": "#d5c9bb",
+        "fill-extrusion-height": [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ]
+        ],
+        "fill-extrusion-base": [
+          "max",
+          0,
+          [
+            "to-number",
+            [
+              "get",
+              "render_min_height"
+            ],
+            0
+          ]
+        ],
+        "fill-extrusion-opacity": 1
+      }
+    },
+    {
       "id": "place-names",
       "type": "symbol",
       "source": "beijing",

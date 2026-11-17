@@ -62,7 +62,8 @@ MapLibre 样式 JSON。文件输出旁生成 `<文件名>.style.json`，目录�
 
 此 GUI 使用 OSM 数据本身，不下载全球海岸线等辅助数据。建筑图层保留 tilemaker
 生成的 `render_height` / `render_min_height` 属性（缺少原始高度时可能根据楼层估算）；
-三种内置风格均为二维显示。中文标签使用随 Viewer 部署的 Noto CJK 字形。
+三种内置风格默认二维显示。打开带建筑高度的 MBTiles 后，可点击右上角 **3D**
+按钮显示立体建筑，再次点击恢复二维俯视。中文标签使用随 Viewer 部署的 Noto CJK 字形。
 输出路径须尚不存在，失败或取消会清理临时结果，不覆盖已有文件。
 
 原命令行入口仍可用于自定义 config / Lua 和辅助数据：
