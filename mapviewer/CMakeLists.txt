@@ -89,6 +89,7 @@ qt_add_qml_module(qml_location_mapviewer
         "forms/RouteListHeader.qml"
         "helper.js"
         "map/MapComponent.qml"
+        "map/MapPointMarker.qml"
         "map/InteractiveMapView.qml"
         "map/MapSliders.qml"
         "map/Marker.qml"

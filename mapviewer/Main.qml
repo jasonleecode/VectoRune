@@ -59,6 +59,8 @@ ApplicationWindow {
     }
     NavigationPanel {
         controller: navigation
+        width: Math.min(360, Math.max(0, parent.width - x - 70))
+        maximumHeight: Math.max(0, parent.height - 24)
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 12

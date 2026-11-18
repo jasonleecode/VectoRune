@@ -5,7 +5,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
-#include <QSet>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTextStream>
@@ -36,26 +35,20 @@ int main(int argc, char **argv) {
                                 << '\n';
             return 0;
         }
-        QSet<QTcpSocket *> clients;
         QTcpServer server;
-        server.setMaxPendingConnections(8);
+        // A viewport change can request many tiles at once, while cancelled
+        // requests are still disconnecting. Let Qt queue these connections;
+        // aborting the ninth active socket surfaced as "Connection closed"
+        // in MapLibre, even for valid cached tiles.
+        server.setMaxPendingConnections(64);
         if (!server.listen(QHostAddress::LocalHost, 0))
             throw std::runtime_error(server.errorString().toStdString());
         const auto token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         QCache<QString, QByteArray> cache(16 * 1024 * 1024);
         QObject::connect(&server, &QTcpServer::newConnection, &app, [&] {
             while (auto *socket = server.nextPendingConnection()) {
-                if (clients.size() >= 8) {
-                    socket->abort();
-                    socket->deleteLater();
-                    continue;
-                }
-                clients.insert(socket);
                 socket->setReadBufferSize(8193);
-                QObject::connect(socket, &QTcpSocket::disconnected, &app, [&, socket] {
-                    clients.remove(socket);
-                    socket->deleteLater();
-                });
+                QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
                 QTimer::singleShot(15000, socket, [socket] {
                     socket->abort();
                     socket->deleteLater();

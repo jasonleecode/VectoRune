@@ -52,55 +52,45 @@ InteractiveMapView {
         line.color: "#2479ef"
         z: 20
     }
-    MapCircle {
+    MapPointMarker {
         parent: view.map
         visible: view.navigationStart.isValid
-        center: view.navigationStart.isValid ? view.navigationStart : QtPositioning.coordinate(0, 0)
-        radius: 15
-        color: "#20b36a"
-        border.color: "white"
-        border.width: 2
+        coordinate: view.navigationStart.isValid ? view.navigationStart : QtPositioning.coordinate(0, 0)
+        label: "起"
+        markerColor: "#20b36a"
         z: 21
     }
-    MapCircle {
+    MapPointMarker {
         parent: view.map
         visible: view.navigationFinish.isValid
-        center: view.navigationFinish.isValid ? view.navigationFinish : QtPositioning.coordinate(0, 0)
-        radius: 15
-        color: "#e53c3c"
-        border.color: "white"
-        border.width: 2
+        coordinate: view.navigationFinish.isValid ? view.navigationFinish : QtPositioning.coordinate(0, 0)
+        label: "终"
+        markerColor: "#e53c3c"
         z: 21
     }
-    MapCircle {
+    MapPointMarker {
         parent: view.map
         visible: view.navigationActive && view.navigationPosition.isValid
-        center: view.navigationPosition.isValid ? view.navigationPosition : QtPositioning.coordinate(0, 0)
-        radius: 10
-        color: "#174fe0"
-        border.color: "white"
-        border.width: 3
+        coordinate: view.navigationPosition.isValid ? view.navigationPosition : QtPositioning.coordinate(0, 0)
+        diameter: 18
+        markerColor: "#174fe0"
         z: 22
     }
 
-    MapCircle {
+    MapPointMarker {
         parent: view.map
         visible: view.track !== null
-        center: view.track ? view.track.start : QtPositioning.coordinate(0, 0)
-        radius: 12
-        color: "#20b36a"
-        border.color: "white"
-        border.width: 2
+        coordinate: view.track ? view.track.start : QtPositioning.coordinate(0, 0)
+        label: "起"
+        markerColor: "#20b36a"
         z: 11
     }
-    MapCircle {
+    MapPointMarker {
         parent: view.map
         visible: view.track !== null
-        center: view.track ? view.track.end : QtPositioning.coordinate(0, 0)
-        radius: 12
-        color: "#e53c3c"
-        border.color: "white"
-        border.width: 2
+        coordinate: view.track ? view.track.end : QtPositioning.coordinate(0, 0)
+        label: "终"
+        markerColor: "#e53c3c"
         z: 11
     }
 

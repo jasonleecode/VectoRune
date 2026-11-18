@@ -28,6 +28,23 @@ class InteractionSetup : public QObject {
     qint64 previousFrame = 0;
     QMetaObject::Connection frameConnection;
 public slots:
+    QVariantMap markerPixels(QQuickItem *item, QPointF point, const QString &expected) {
+        const auto image = item->window()->grabWindow();
+        const auto ratio = image.devicePixelRatio();
+        const auto center = item->mapToScene(point) * ratio;
+        const QColor target(expected);
+        QRect bounds;
+        const QRect area = QRect(int(center.x()) - 60, int(center.y()) - 60, 121, 121).intersected(image.rect());
+        for (int y = area.top(); y <= area.bottom(); ++y)
+            for (int x = area.left(); x <= area.right(); ++x) {
+                const auto color = image.pixelColor(x, y);
+                if (qAbs(color.red() - target.red()) + qAbs(color.green() - target.green())
+                    + qAbs(color.blue() - target.blue()) < 35) bounds = bounds.united(QRect(x, y, 1, 1));
+            }
+        return {{"width", bounds.width() / ratio}, {"height", bounds.height() / ratio},
+                {"x", (QRectF(bounds).center().x() - center.x()) / ratio},
+                {"y", (QRectF(bounds).center().y() - center.y()) / ratio}};
+    }
     QVariantMap readGpx(const QUrl &url) { return GpxTrack().read(url); }
     int colorPixelsNear(QQuickItem *item, QPointF point, const QString &expected) {
         const auto image = item->window()->grabWindow();

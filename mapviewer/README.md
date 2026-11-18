@@ -278,6 +278,12 @@ graphs in separate processes. A bundled worker reads geometry for requested tile
 clips/encodes MVT, and serves it on a random loopback port to MapLibre with
 `plugins/garmin/resources/garmin-style.json` (repository-relative). This needs no Internet
 connection. Geometry is generalized at lower zooms; the finest source tile level is 14.
+The HTTP connection is between MapLibre and the local geometry helper at
+`127.0.0.1`, not a cloud service. The helper allows viewport request bursts
+without forcibly closing sockets above eight active connections; Qt's pending
+connection queue holds up to 64. Requests still have an 8 KiB header limit and
+a 15-second connection deadline. The loopback integration test holds 32 requests
+open together and checks that every response contains the complete expected MVT.
 Runtime rendering no longer loads a whole GeoJSON document. The default diagnostic
 import command still exports GeoJSON; `--compact` skips that export.
 The viewer stays responsive during conversion, retains the current map on import
@@ -346,7 +352,11 @@ permission is requested when the user selects “Follow me” or starts live nav
 ## Offline routing and navigation (development)
 
 After loading a Garmin IMG, right-click to select **设为路线起点** and
-**设为路线终点**, then choose **规划路线** or press **规划** in the panel.
+**设为路线终点**, then choose **规划路线** or press **规划路线** in the panel.
+Start/end markers keep a fixed screen size when zooming (also for GPX tracks).
+The panel puts its planning button below the mode and route preference selectors,
+fits the available window width, and scrolls when the window is too short for
+the route results.
 Initial import compiles directed graphs from NET-associated road geometry and Garmin
 junction flags into `car.vgr`, `bicycle.vgr` and `walk.vgr`. The separate routing service
 memory-maps the selected mode, verifies its checksum/structure, and directly reads its
